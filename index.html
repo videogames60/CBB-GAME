@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hoops Dynasty</title>
+<link rel="stylesheet" href="ui/ui_style.css">
+</head>
+<body>
+<div id="wrap">
+  <h1>Hoops Dynasty</h1>
+
+  <!-- ===== SETUP ===== -->
+  <div id="setup">
+    <div class="card">
+      <h2>Create your program <button class="quiet mini" style="float:right" onclick="helpShow('welcome')">ⓘ How a dynasty works</button></h2>
+      <div class="row">
+        <div><label>League</label><select id="sLeague" onchange="fillConfs()"></select></div>
+        <div><label>League seed</label><span class="row" style="gap:4px"><input type="number" id="sSeed" value="42" style="width:90px" onchange="fillSchools()"><button class="quiet" type="button" title="Random seed" onclick="$('sSeed').value=1+Math.floor(Math.random()*999999);fillSchools()">🎲</button></span></div>
+        <div><label>Conference</label><select id="sConf" onchange="fillSchools()"></select></div>
+        <div><label>School</label><select id="sSchool" onchange="schoolPicked()"></select></div>
+        <div style="align-self:end"><button class="quiet" type="button" onclick="$('sLeagueFile').click()" title="Load a league definition (.json): conferences, sizes, tiers, and your own school names">Import league file…</button>
+          <button class="quiet" type="button" onclick="exportLeagueFile()" title="Download this league with this seed's schools, coaches and rosters as a .json file you can edit and import">Export league file</button>
+          <input type="file" id="sLeagueFile" accept=".json,application/json" style="display:none" onchange="importLeagueFile(this)"></div>
+      </div>
+      <p class="hint" id="sLeagueNote" style="margin:6px 0 0"></p>
+      <div class="row" id="sOwn" style="margin-top:10px">
+        <div><label>School name</label><input type="text" id="sName" value="Eastwood State"></div>
+        <div><label>Mascot</label><input type="text" id="sMascot" value="Ravens"></div>
+        <div><label>Abbr</label><input type="text" id="sAbbr" value="EAS" maxlength="4" style="width:60px;text-transform:uppercase"></div>
+        <div><label>Color</label><input type="color" id="sColor" value="#C0392B"></div>
+        <div><label>Program prestige</label><input type="number" id="sPrestige" value="45" min="20" max="95"></div>
+        <div><label>City</label><select id="sCity"></select></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div><label>Head coach</label><input type="text" id="sCoach" value="Ray Whitlock"></div>
+        <div><label>Job security</label><label style="display:inline-flex;align-items:center;gap:6px;margin:6px 0 0;font-size:12px;text-transform:none"><input type="checkbox" id="sFire" checked> You can be fired</label></div>
+      </div>
+      <p class="hint" style="margin:10px 0 0">Prestige drives your roster talent, recruiting pull and home crowd. Start low for a rebuild, high to inherit a contender — or take over an existing school and keep what it has.</p>
+      <div class="sect" style="margin-top:14px">Your coach</div>
+      <div class="row" id="coachBuild"></div>
+      <p class="hint" id="coachPool" style="margin:6px 0 0"></p>
+      <div class="row" style="margin-top:12px">
+        <button onclick="newDynasty()">Start dynasty</button>
+        <button class="quiet" onclick="loadGame()">Load saved</button>
+        <label style="display:inline-flex;align-items:center;gap:6px;margin:0 0 0 8px;font-size:12px"><input type="checkbox" id="dbgBox" onchange="setDebug(this.checked)"> Debug tools</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== LIVE GAME ===== -->
+  <div id="gameScreen" style="display:none">
+    <div id="pregame"></div>
+    <div id="liveWrap" style="display:none">
+      <div class="board" id="gBoard"></div>
+      <div class="fitbox" id="gFit"></div>
+      <div class="finalCard" id="gFinal"></div>
+      <div class="controls">
+        <div class="grp">
+          <button id="gPlay" onclick="gTogglePlay()">▶ Play</button>
+          <button class="quiet" id="gStep" onclick="gStep()">Possession</button>
+          <button class="quiet" id="gEnd" onclick="gSimEnd()">Sim to end</button>
+          <span>speed</span>
+          <select id="gSpeedSel" class="phoneOnly" onchange="gSpeed(this.value)"><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select>
+          <button class="quiet deskOnly" data-speed="0.25" onclick="gSpeed(0.25)">¼×</button>
+          <button class="quiet deskOnly" data-speed="0.5" onclick="gSpeed(0.5)">½×</button>
+          <button class="quiet deskOnly" data-speed="1" onclick="gSpeed(1)">1×</button>
+          <button class="quiet deskOnly" data-speed="2" onclick="gSpeed(2)">2×</button>
+          <button class="quiet deskOnly" data-speed="4" onclick="gSpeed(4)">4×</button>
+          <button class="quiet deskOnly" data-speed="8" onclick="gSpeed(8)">8×</button>
+        </div>
+        <div class="grp">
+          <button class="quiet" id="gTO" onclick="gTimeout()">Timeout</button>
+          <button class="quiet" id="gAuto" onclick="gToggleAuto()" title="Let the assistant handle subs">Auto-coach</button>
+          <button class="quiet" id="gLate" onclick="gToggleLate()" title="Automatic clock management late">Late-game AI</button>
+          <button class="quiet" id="gDead" onclick="gToggleDead()" title="Pause Play at every dead ball (when subs and timeouts are allowed)">Stop at dead balls</button>
+        </div>
+        <div class="grp">
+          <span>offense</span><select id="gOff" onchange="gStyle()"></select>
+          <span id="gIsoWrap" style="display:none">go-to guy <select id="gIso" onchange="gIsoSet()"></select></span>
+          <span>defense</span><select id="gDef" onchange="gStyle()"></select>
+        </div>
+        <div class="grp gtabs"><button class="quiet" id="gTabPbp" onclick="gTab('pbp')">Play-by-play</button><button class="quiet phoneOnly" id="gTabAway" onclick="gTab('away')">Away</button><button class="quiet phoneOnly" id="gTabHome" onclick="gTab('home')">Home</button><button class="quiet" id="gTabBox" onclick="gTab('box')">Box score</button><button class="quiet" id="gTabRolls" onclick="gTab('rolls')" title="Every dice roll the engine made, with the odds">Rolls</button><button class="quiet" id="gCourtBtn" onclick="courtToggle()" title="Show or hide the court">Court</button></div>
+      </div>
+      <div class="banner" id="gBanner"></div>
+      <div class="gmain">
+        <div class="card lineup" id="gLeft"></div>
+        <div class="card gmid"><div id="gCourtWrap"><div class="courtBox" id="gCourt"></div><div class="courtCap" id="gCourtCap"></div></div><div class="pbp" id="gPbp"></div><div id="gBox" style="display:none"></div><div class="rolls" id="gRolls" style="display:none"></div></div>
+        <div class="card lineup" id="gRight"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PLAYER CARD ===== -->
+  <div class="modalBg helpModal" id="helpBg" onclick="if(event.target===this)helpClose(HELPCUR)"><div class="pcard helpCardBox" id="helpCard"></div></div>
+  <div class="modalBg" id="cardBg" onclick="if(event.target===this)closeCard()">
+    <div class="pcard" id="cardBox"></div>
+  </div>
+
+  <!-- ===== MAIN ===== -->
+  <div id="main" style="display:none">
+    <div class="hdr" id="teamHdr"></div>
+    <div class="simBar" id="simBar" style="display:none"></div>
+    <div class="tabs" id="tabs"></div>
+    <div id="view"></div>
+  </div>
+</div>
+
+<script src="sim/tuning.js"></script>
+<script src="sim/text.js"></script>
+<script src="sim/engine.js"></script>
+<script src="sim/archetypes.js"></script>
+<script src="sim/sample_teams.js"></script>
+<script src="dynasty/geo.js"></script>
+<script src="dynasty/pipelines.js"></script>
+<script src="dynasty/leagues.js"></script>
+<script src="dynasty/league.js"></script>
+<script src="dynasty/rankings.js"></script>
+<script src="dynasty/season.js"></script>
+<script src="dynasty/development.js"></script>
+<script src="dynasty/draft.js"></script>
+<script src="dynasty/offseason.js"></script>
+<script src="dynasty/recruiting.js"></script>
+<script src="dynasty/program.js"></script>
+<script src="dynasty/roster.js"></script>
+<script src="dynasty/portal.js"></script>
+<script src="dynasty/coaches.js"></script>
+<script src="dynasty/awards.js"></script>
+<script src="dynasty/records.js"></script>
+<script src="dynasty/hof.js"></script>
+<script src="dynasty/save.js"></script>
+<script src="ui/ui_help.js"></script>
+<script src="ui/ui_core.js"></script>
+<script src="ui/ui_season.js"></script>
+<script src="ui/ui_live.js"></script>
+<script src="ui/ui_court.js"></script>
+<script src="ui/ui_offseason.js"></script>
+<script src="ui/ui_program.js"></script>
+<script src="ui/ui_recruiting.js"></script>
+<script src="ui/ui_saves.js"></script>
+<script src="ui/ui_debug.js"></script>
+<script src="ui/us_map.js"></script>
+<script src="ui/ui_map.js"></script>
+<script src="ui/ui_draft.js"></script>
+<script src="ui/ui_staff.js"></script>
+<script src="ui/ui_awards.js"></script>
+<script src="ui/ui_history.js"></script>
+</body>
+</html>

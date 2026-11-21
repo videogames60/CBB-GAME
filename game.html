@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hoops Sim — live coaching</title>
+<style>
+  :root{
+    --bg:#101820; --panel:#182230; --panel2:#1f2b3b; --line:rgba(255,255,255,.08);
+    --ink:#EEE9DD; --dim:#95A0B3; --gold:#E4B93F; --green:#5BB07F; --red:#D5574D; --amber:#E0964A; --court:#C89056;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  .num{font-family:"Arial Narrow","Helvetica Neue Condensed",Arial,sans-serif;font-weight:800;font-variant-numeric:tabular-nums}
+  #wrap{max-width:1240px;margin:0 auto;padding:16px 16px 60px}
+  h1{font-size:18px;margin:0 0 12px;font-weight:700;display:flex;align-items:center;gap:12px}
+  h1 small{color:var(--dim);font-weight:400;font-size:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px}
+  .card h2{font-size:12px;color:var(--dim);margin:0 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+  .row label{font-size:11px;color:var(--dim);display:block;margin-bottom:3px}
+  input,select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:6px 8px;font-size:13px}
+  input[type=text]{width:150px} input[type=number]{width:60px}
+  button{background:var(--gold);color:#1b1405;border:0;border-radius:4px;padding:8px 13px;font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap}
+  button.quiet{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  button.on{background:var(--ink);color:#101820}
+  button.danger{background:var(--red);color:#fff}
+  button:disabled{opacity:.35;cursor:default}
+  .setup{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .rot{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+  .rot td,.rot th{padding:3px 4px;border-bottom:1px solid var(--line);text-align:left}
+  .rot input{width:52px;padding:3px 5px}
+  .rot .sum{color:var(--gold);font-weight:700}
+  .rot .sum.bad{color:var(--red)}
+
+  .board{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--court);border-radius:6px;padding:12px 18px;margin-bottom:10px}
+  .board .team{display:flex;align-items:center;gap:10px}
+  .board .team.right{justify-content:flex-end;text-align:right}
+  .dot{width:12px;height:12px;border-radius:50%;flex:none}
+  .board .score{font-size:40px;line-height:1}
+  .board .tos{color:var(--dim);font-size:11px;letter-spacing:2px}
+  .board .mid{text-align:center;color:var(--dim);font-size:12px;padding:0 24px}
+  .board .mid .clk{font-size:22px;color:var(--ink)}
+  .board .style{font-size:11px;color:var(--dim)}
+
+  .controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .controls .grp{display:flex;gap:4px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 6px}
+  .controls .grp span{font-size:11px;color:var(--dim);padding:0 4px}
+  .controls select{padding:5px 6px}
+  .banner{display:none;background:#3a2f12;border:1px solid var(--gold);color:var(--gold);padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:13px}
+
+  .main{display:grid;grid-template-columns:340px 1fr;gap:12px}
+  @media(max-width:900px){.setup,.main{grid-template-columns:1fr}}
+  .lineup table{width:100%;border-collapse:collapse;font-size:12px}
+  .lineup th{text-align:left;color:var(--dim);font-weight:600;padding:4px 3px;border-bottom:1px solid var(--line);font-size:11px}
+  .lineup td{padding:5px 3px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .lineup tr.out td{color:var(--dim)}
+  .lineup .nm{font-weight:600}
+  .lineup .nm small{color:var(--dim);font-weight:400;margin-left:4px}
+  .bar{height:6px;background:var(--panel2);border-radius:3px;overflow:hidden;width:64px}
+  .bar i{display:block;height:100%;background:var(--green)}
+  .bar i.mid{background:var(--amber)} .bar i.low{background:var(--red)}
+  .pf{font-weight:700} .pf.warn{color:var(--amber)} .pf.bad{color:var(--red)}
+  .lineup select{padding:3px 4px;font-size:11px;max-width:120px}
+  .sect{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin:10px 0 4px}
+
+  .pbp{height:560px;overflow-y:auto;padding-right:6px}
+  .pbp .ev{display:grid;grid-template-columns:62px 1fr auto;gap:10px;padding:4px 4px;border-bottom:1px solid var(--line);font-size:13px}
+  .pbp .ev .t{color:var(--dim);font-size:12px}
+  .pbp .ev .s{color:var(--dim);font-size:12px}
+  .pbp .ev.made .s{color:var(--gold)}
+  .pbp .ev.tov .txt{color:var(--red)} .pbp .ev.sub .txt,.pbp .ev.period .txt{color:var(--dim);font-style:italic}
+  .pbp .ev.to .txt{color:var(--gold);font-weight:600}
+  .pbp .ev.alert .txt{color:var(--amber);font-weight:600}
+  .pbp .ev.a{border-left:3px solid var(--tA)} .pbp .ev.b{border-left:3px solid var(--tB)}
+  .tabs{display:flex;gap:4px;margin-bottom:8px}
+  .tabs button{padding:5px 10px;font-size:12px}
+  table.box{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px}
+  .box th{text-align:right;color:var(--dim);font-weight:600;padding:4px 4px;border-bottom:1px solid var(--line);font-size:11px}
+  .box td{text-align:right;padding:4px 4px;border-bottom:1px solid var(--line)}
+  .box th:first-child,.box td:first-child{text-align:left}
+  .box tr.starter td:first-child{font-weight:700}
+  .box tr.total td{color:var(--gold);font-weight:700;border-top:1px solid var(--dim)}
+  details{margin-top:10px} summary{cursor:pointer;color:var(--dim);font-size:12px}
+  pre{font-size:11px;color:var(--dim);white-space:pre-wrap;max-height:240px;overflow:auto;background:var(--panel2);padding:10px;border-radius:4px}
+  .hint{color:var(--dim);font-size:12px;margin:0 0 10px}
+  .rolls{height:560px;overflow-y:auto;font:11px/1.5 ui-monospace,Menlo,Consolas,monospace;color:var(--dim)}
+  .rolls div{white-space:pre-wrap}
+  .rolls .ph{color:var(--gold);margin-top:6px}
+
+  .lineup .nm{font-weight:600;cursor:pointer}
+  .lineup .nm:hover{color:var(--gold);text-decoration:underline}
+  .ovrCell{font-weight:700;font-variant-numeric:tabular-nums}
+  .ovrCell .drop{color:var(--red);font-weight:600;font-size:11px;margin-left:2px}
+
+  .modalBg{display:none;position:fixed;inset:0;background:rgba(6,10,16,.72);z-index:50;align-items:center;justify-content:center;padding:20px}
+  .modalBg.show{display:flex}
+  .pcard{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--court);border-radius:8px;max-width:460px;width:100%;padding:16px 18px;max-height:90vh;overflow:auto}
+  .pcard .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px}
+  .pcard .who{font-size:19px;font-weight:700}
+  .pcard .meta{color:var(--dim);font-size:12px;margin-bottom:12px}
+  .pcard .close{background:none;border:0;color:var(--dim);font-size:22px;padding:0 4px;cursor:pointer;line-height:1}
+  .pcard .ovrBig{text-align:right;line-height:1.1}
+  .pcard .ovrBig b{font-size:30px;font-family:"Arial Narrow",Arial,sans-serif}
+  .pcard .ovrBig .sub{font-size:11px;color:var(--dim)}
+  .pcard .ovrBig .sub .down{color:var(--red);font-weight:700}
+  .rgroup{margin-top:12px}
+  .rgroup h4{margin:0 0 6px;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+  .rline{display:grid;grid-template-columns:74px 1fr 62px;align-items:center;gap:8px;padding:2px 0;font-size:12px}
+  .rline .lbl{color:var(--dim)}
+  .rbar{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;position:relative}
+  .rbar i{position:absolute;left:0;top:0;bottom:0;background:var(--dim);opacity:.45}
+  .rbar b{position:absolute;left:0;top:0;bottom:0;background:var(--green);border-radius:4px}
+  .rbar b.mid{background:var(--amber)} .rbar b.low{background:var(--red)}
+  .rval{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+  .rval .was{color:var(--dim);font-weight:400;font-size:11px;margin-right:4px;text-decoration:line-through}
+  .statline{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;color:var(--dim)}
+  .statline b{color:var(--ink);font-size:14px;display:block;font-variant-numeric:tabular-nums}
+  .arch{color:var(--dim);font-size:11px}
+  .fitbox{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+  @media(max-width:900px){.fitbox{grid-template-columns:1fr}}
+  .fitrow{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:12px}
+  .fitrow .hd{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .fitrow .nm2{font-weight:700}
+  .fitrow .gr{font-weight:700;text-transform:capitalize}
+  .fitrow .gr.excellent,.fitrow .gr.good{color:var(--green)}
+  .fitrow .gr.average{color:var(--amber)}
+  .fitrow .gr.poor,.fitrow .gr.terrible{color:var(--red)}
+  .fitrow .why{color:var(--dim);font-size:11px;margin-top:2px}
+  .fitbar{height:5px;background:var(--panel2);border-radius:3px;overflow:hidden;margin-top:5px}
+  .fitbar i{display:block;height:100%;background:var(--green)}
+  .fitbar i.average{background:var(--amber)} .fitbar i.poor,.fitbar i.terrible{background:var(--red)}
+  .final{display:none;background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--gold);border-radius:6px;padding:14px 18px;margin-bottom:10px}
+  .final.show{display:block}
+  .final .hdr{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+  .final .hdr .res{font-size:15px;font-weight:700}
+  .final .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:900px){.final .cols{grid-template-columns:1fr}}
+  .final .lead{font-size:12px;color:var(--dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+  .final .tp{display:flex;justify-content:space-between;font-size:13px;padding:3px 0;border-bottom:1px solid var(--line)}
+  .final .tp b{font-variant-numeric:tabular-nums}
+  .final .splits{font-size:12px;color:var(--dim);margin-top:8px}
+  .final .splits b{color:var(--ink)}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>Hoops Sim <small>live coaching — you coach Team A</small></h1>
+
+  <div id="setupWrap">
+    <div class="setup">
+      <div class="card" id="setupA"></div>
+      <div class="card" id="setupB"></div>
+    </div>
+    <div class="controls">
+      <button onclick="buildTeams()">Build teams</button>
+      <button class="quiet" id="btnStart" onclick="startGame()" disabled>Start game</button>
+      <div class="grp"><span>seed</span><input type="number" id="seed" value="42" style="width:80px"><button class="quiet" onclick="document.getElementById('seed').value=Math.floor(Math.random()*1e6)">random</button></div>
+    </div>
+    <div class="card" id="rotCard" style="display:none;margin-bottom:12px">
+      <h2>Team A rotation — target minutes (must total 200)</h2>
+      <div id="rotBody"></div>
+    </div>
+  </div>
+
+  <div id="game" style="display:none">
+    <div class="board" id="board"></div>
+    <div class="final" id="final"></div>
+    <div class="fitbox" id="fitbox"></div>
+    <div class="banner" id="banner"></div>
+    <div class="controls">
+      <div class="grp">
+        <button id="btnPlay" onclick="togglePlay()">▶ Play</button>
+        <button class="quiet" onclick="stepOnce()" id="btnStep">Next poss.</button>
+        <button class="quiet" onclick="simToEnd()" id="btnEnd">Sim to final</button>
+      </div>
+      <div class="grp"><span>speed</span>
+        <button class="quiet" data-speed="0.25" onclick="setSpeed(0.25)">¼×</button>
+        <button class="quiet" data-speed="0.5" onclick="setSpeed(0.5)">½×</button>
+        <button class="quiet" data-speed="1" onclick="setSpeed(1)">1×</button>
+        <button class="quiet" data-speed="2" onclick="setSpeed(2)">2×</button>
+        <button class="quiet" data-speed="4" onclick="setSpeed(4)">4×</button>
+        <button class="quiet" data-speed="8" onclick="setSpeed(8)">8×</button>
+      </div>
+      <div class="grp">
+        <button class="quiet" id="btnDead" onclick="toggleDead()">Stop at dead balls</button>
+        <button class="quiet" id="btnAuto" onclick="toggleAuto()">Auto-coach</button>
+        <button class="quiet" id="btnLate" onclick="toggleLate()" title="Hold for the last shot, milk a lead, foul when trailing late">Late-game AI</button>
+      </div>
+      <div class="grp">
+        <button class="danger" id="btnTO" onclick="timeout()">Timeout</button>
+        <span>offense</span><select id="liveOff" onchange="liveStyle()"></select>
+        <span id="isoWrap" style="display:none">go-to guy <select id="liveIso" onchange="liveIso()"></select></span>
+        <span>defense</span><select id="liveDef" onchange="liveStyle()"></select>
+      </div>
+      <label style="font-size:12px;color:var(--dim);margin-left:auto"><input type="checkbox" id="showPasses" onchange="TEXT.showPasses=this.checked;renderPbp(true)"> passes</label>
+      <button class="quiet" onclick="mainMenu()">Main menu</button>
+    </div>
+
+    <div class="main">
+      <div class="card lineup">
+        <h2 id="lineupTitle">Your bench</h2>
+        <div id="lineup"></div>
+      </div>
+      <div class="card">
+        <div class="tabs">
+          <button class="quiet on" id="tabPbp" onclick="showTab('pbp')">Play-by-play</button>
+          <button class="quiet" id="tabBox" onclick="showTab('box')">Box score</button>
+          <button class="quiet" id="tabRolls" onclick="showTab('rolls')" title="Every dice roll the engine made, with the odds">Rolls</button>
+        </div>
+        <div class="pbp" id="pbp"></div>
+        <div id="box" style="display:none"></div>
+        <div class="rolls" id="rolls" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+  <div class="modalBg" id="cardBg" onclick="if(event.target===this) hideCard()">
+    <div class="pcard" id="cardBody"></div>
+  </div>
+  <p class="hint" id="emptyHint">Set up both teams, build them, adjust Team A's rotation if you like, then start. You control Team A: subs, timeouts, and playstyle. Toggle Auto-coach to let the engine run your bench.</p>
+</div>
+
+<script src="sim/tuning.js"></script>
+<script src="sim/text.js"></script>
+<script src="sim/engine.js"></script>
+<script src="sim/archetypes.js"></script>
+<script src="sim/sample_teams.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let G = null, teams = null, pbpCount = 0, playing = false, speed = 1, stopAtDead = false, timer = null;
+const alerted = {};   // one alert per player per foul threshold
+let cardOpen = null;  // player id whose card is showing, so it can refresh live
+
+/* ---------- setup ---------- */
+function styleOptions(kind, sel){
+  return Object.entries(TUNING.styles[kind]).map(([k,v])=>`<option value="${k}" ${k===sel?'selected':''}>${v.label}</option>`).join("");
+}
+function setupCard(id, d){
+  $("setup"+id).innerHTML = `
+    <h2>Team ${id}${id==="A"?" — you":" — computer"}</h2>
+    <div class="row">
+      <div><label>School</label><input type="text" id="name${id}" value="${d.name}" oninput="autoAbbr('${id}')"></div>
+      <div><label>Mascot</label><input type="text" id="mascot${id}" value="${d.mascot}" style="width:110px"></div>
+      <div><label>Abbr</label><input type="text" id="abbr${id}" value="${d.abbr}" maxlength="4" style="width:56px;text-transform:uppercase"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div><label>Color</label><input type="color" id="color${id}" value="${d.color}"></div>
+      <div><label>Roster quality</label><input type="number" id="q${id}" value="${d.q}" min="35" max="95"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div><label>Coach rating</label><input type="number" id="cr${id}" value="${d.cr}" min="25" max="99"></div>
+      <div><label>Offense</label><select id="off${id}">${styleOptions("offense", d.offense)}</select></div>
+      <div><label>Defense</label><select id="def${id}">${styleOptions("defense", d.defense)}</select></div>
+    </div>`;
+}
+setupCard("A", {name:"Eastwood State", mascot:"Ravens", abbr:"EAS", color:"#C0392B", q:70, cr:70, offense:"balanced", defense:"man"});
+setupCard("B", {name:"Ridgeview Tech", mascot:"Miners", abbr:"RID", color:"#2471A3", q:66, cr:60, offense:"motion", defense:"gamble"});
+
+/* abbreviation follows the school name until the user edits it themselves */
+function autoAbbr(id){
+  const box = $("abbr"+id);
+  if(box.dataset.touched) return;
+  box.value = SampleTeams.autoAbbr($("name"+id).value);
+}
+["A","B"].forEach(id => $("abbr"+id).addEventListener("input", e => { e.target.dataset.touched = "1"; }));
+
+function readTeam(id, rand){
+  return SampleTeams.generateTeam(rand, {
+    id, name: $("name"+id).value || ("Team "+id), mascot: $("mascot"+id).value,
+    abbr: ($("abbr"+id).value || "").toUpperCase(), color: $("color"+id).value, quality: +$("q"+id).value,
+    coach: { rating: +$("cr"+id).value, offense: $("off"+id).value, defense: $("def"+id).value },
+  });
+}
+
+function buildTeams(){
+  const seed = +$("seed").value || 1;
+  const rand = Engine.makeRng(seed);
+  teams = [readTeam("A", rand), readTeam("B", rand)];
+  teams[0].control = "manual";
+  // preview game just to get default rotation / ovr
+  const preview = Engine.createGame(teams[0], teams[1], { seed, debug: true });
+  const t = preview.teams[0];
+  const rows = [...t.players].sort((a,b)=>(t.rotation[b.id]||0)-(t.rotation[a.id]||0)).map(p=>`
+    <tr><td>${p.name} <span class="arch">${p.archetype||""}${p.wildcard?` · ${p.wildcard}`:""}</span></td><td>${p.pos}</td><td>${p.ovr}</td><td>${p.height? Math.floor(p.height/12)+"'"+p.height%12 : ""}</td>
+    <td><input type="number" min="0" max="40" data-id="${p.id}" value="${t.rotation[p.id]||0}" oninput="rotSum()"></td></tr>`).join("");
+  $("rotBody").innerHTML = `<table class="rot"><thead><tr><th>Player</th><th>Pos</th><th>OVR</th><th>Ht</th><th>Min</th></tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><td colspan="4">Total</td><td class="sum" id="rotSum">200</td></tr></tfoot></table>`;
+  $("rotCard").style.display = "";
+  $("btnStart").disabled = false;
+  rotSum();
+  // Iso offense: who is the go-to guy? default = best scorer
+  const isoOpts = [...t.players].sort((a,b)=>b.ovr-a.ovr).map(p=>`<option value="${p.id}">${p.name} (${p.pos}, ${p.ovr})</option>`).join("");
+  $("rotBody").insertAdjacentHTML("beforeend", `<div id="isoPre" style="margin-top:10px;display:${$("offA").value==="iso"?"":"none"}"><label style="font-size:11px;color:var(--dim);display:block;margin-bottom:3px">Iso offense — designated scorer</label><select id="isoPick">${isoOpts}</select></div>`);
+  $("offA").onchange = () => { if($("isoPre")) $("isoPre").style.display = $("offA").value==="iso" ? "" : "none"; };
+}
+function rotSum(){
+  let s = 0; document.querySelectorAll("#rotBody input").forEach(i => s += +i.value || 0);
+  const el = $("rotSum"); el.textContent = s; el.className = "sum" + (s===200 ? "" : " bad");
+  $("btnStart").disabled = s !== 200;
+}
+
+function startGame(){
+  const seed = +$("seed").value || 1;
+  const rot = {}; document.querySelectorAll("#rotBody input").forEach(i => rot[i.dataset.id] = +i.value || 0);
+  teams[0].rotation = rot;
+  teams[0].isoTarget = $("isoPick") ? $("isoPick").value : null;
+  G = Engine.createGame(teams[0], teams[1], { seed, debug: true });
+  pbpCount = 0; playing = false; view = null; renderRolls(true); for (const k in alerted) delete alerted[k];
+  document.documentElement.style.setProperty("--tA", teams[0].color);
+  document.documentElement.style.setProperty("--tB", teams[1].color);
+  $("setupWrap").style.display = "none"; $("emptyHint").style.display = "none";
+  $("game").style.display = ""; $("pbp").innerHTML = ""; $("final").classList.remove("show"); $("final").innerHTML = "";
+  $("liveOff").innerHTML = styleOptions("offense", teams[0].coach.offense);
+  $("liveDef").innerHTML = styleOptions("defense", teams[0].coach.defense);
+  $("liveIso").innerHTML = [...G.teams[0].players].sort((a,b)=>b.ovr-a.ovr).map(p=>`<option value="${p.id}" ${p.id===G.teams[0].isoTarget?'selected':''}>${p.name.split(" ").pop()} ${p.pos} ${p.ovr}</option>`).join("");
+  $("isoWrap").style.display = teams[0].coach.offense === "iso" ? "" : "none";
+  setSpeed(speed); banner("");
+  renderAll();
+}
+
+/* ---------- controls ---------- */
+function setSpeed(s){ speed = s; document.querySelectorAll("[data-speed]").forEach(b => b.classList.toggle("on", +b.dataset.speed === s)); }
+function syncToggles(){
+  if(!G) return;
+  $("btnDead").classList.toggle("on", stopAtDead);
+  $("btnAuto").classList.toggle("on", G.teams[0].control === "auto");
+  $("btnLate").classList.toggle("on", G.teams[0].coach.lateGame !== "off");
+  $("btnPlay").textContent = playing ? "⏸ Pause" : "▶ Play";
+  const over = G.over;
+  $("btnPlay").disabled = over; $("btnStep").disabled = over || playing; $("btnEnd").disabled = over;
+  $("btnTO").disabled = over || G.teams[0].timeouts <= 0;
+  $("btnTO").textContent = `Timeout (${G.teams[0].timeouts})`;
+}
+function toggleDead(){ stopAtDead = !stopAtDead; syncToggles(); }
+function toggleAuto(){ if(!G) return; Engine.setControl(G, 0, G.teams[0].control === "auto" ? "manual" : "auto"); syncToggles(); renderLineup(); }
+function toggleLate(){ if(!G) return; Engine.setLateGame(G, 0, G.teams[0].coach.lateGame === "off" ? "auto" : "off"); syncToggles(); renderBoard(); }
+function liveStyle(){
+  if(!G) return;
+  Engine.setStyle(G, 0, { offense: $("liveOff").value, defense: $("liveDef").value });
+  $("isoWrap").style.display = $("liveOff").value === "iso" ? "" : "none";
+  renderBoard(); renderFit();
+}
+function liveIso(){ if(!G) return; Engine.setIsoTarget(G, 0, $("liveIso").value); renderFit(); }
+function timeout(){
+  if(!G) return;
+  if(Engine.callTimeout(G, 0)){ pause(); renderAll(); banner("Timeout. Make your subs and changes, then press Play."); }
+}
+function doSub(outId, inId){
+  if(!G || !inId) return;
+  if(Engine.substitute(G, 0, outId, inId)) { renderAll(); }
+}
+function banner(msg){ const b = $("banner"); b.textContent = msg; b.style.display = msg ? "" : "none"; }
+
+function togglePlay(){ playing ? pause() : play(); }
+function pause(){ playing = false; clearTimeout(timer); syncToggles(); }
+function play(){ if(!G || G.over) return; playing = true; banner(""); syncToggles(); loop(); }
+
+/* one possession, then reveal its lines at the chosen speed, then decide whether to continue */
+function loop(){
+  if(!playing || !G || G.over){ pause(); return; }
+  const evBefore = G.events.length;
+  const alive = Engine.advance(G);
+  const perLine = 650 / speed;
+  const reveal = () => {
+    if(!playing) return;
+    if(pbpCount < G.events.length) renderPbpOne();
+    if(pbpCount < G.events.length){ timer = setTimeout(reveal, perLine); return; }
+    renderBoard(); renderLineup(); renderFit(); renderRolls(); if($("box").style.display !== "none") renderBox(); if(cardOpen) showCard(cardOpen);
+    const stop = checkAlerts() || !alive || (stopAtDead && G.deadBall) || lastType(evBefore, "period_end");
+    if(stop){ pause(); if(!alive) banner("Final."); return; }
+    timer = setTimeout(loop, perLine);
+  };
+  reveal();
+}
+function lastType(from, type){ return G.events.slice(from).some(e => e.type === type); }
+function stepOnce(){
+  if(!G || G.over) return;
+  Engine.advance(G);
+  renderAll(); checkAlerts(); syncToggles();
+}
+function simToEnd(){
+  if(!G) return; pause();
+  while(Engine.advance(G));
+  renderAll(); banner("Final."); syncToggles();
+}
+
+/* alerts: your players hitting foul trouble, opponent runs. Returns true if the game should pause (manual mode only). */
+function checkAlerts(){
+  if(!G) return false;
+  const me = G.teams[0], opp = G.teams[1];
+  let msg = null;
+  for(const id of me.onCourt){
+    const p = G.byId[id], key = id + ":" + p.stats.pf;
+    if(p.stats.pf >= 2 && !alerted[key] && Engine.inFoulTrouble(G, p)){ alerted[key] = true; msg = `${p.name} has ${p.stats.pf} fouls.`; }
+  }
+  const runKey = "run:" + G.period + ":" + G.run.teamIdx + ":" + G.run.pts;
+  if(G.run.teamIdx === opp.idx && G.run.pts >= TUNING.ai.runTrigger && !alerted[runKey]){ alerted[runKey] = true; msg = `${opp.name} on a ${G.run.pts}-0 run.`; }
+  if(msg){ pushAlert(msg); banner(msg + (me.control === "manual" ? " Game paused." : "")); return me.control === "manual"; }
+  return false;
+}
+function pushAlert(msg){
+  const div = document.createElement("div"); div.className = "ev alert";
+  div.innerHTML = `<span class="t">${TEXT.clock({period:G.period, clock:G.clock})}</span><span class="txt">${msg}</span><span class="s"></span>`;
+  $("pbp").appendChild(div); $("pbp").scrollTop = $("pbp").scrollHeight;
+}
+
+/* ---------- rendering ---------- */
+/* how well the five on the floor suit your two schemes right now */
+function renderFit(){
+  const f = Engine.styleFit(G, 0);
+  const one = (kind, s) => {
+    if(!s.reads) return `<div class="fitrow"><div class="hd"><span class="nm2">${kind}: ${s.label}</span><span class="gr">no fit requirement</span></div>
+      <div class="why">This scheme works with any lineup.</div></div>`;
+    const pct = Math.round(100 * Math.max(0, Math.min(1, (s.scale - 0.30) / 0.85)));
+    const who = s.isoTarget ? (s.fallback ? `${s.isoTarget} is on the bench — running Balanced until he's back` : `go-to guy: ${s.isoTarget}, reads his ${s.reads.replace(" (target)","")}`) : `reads ${s.reads} — your five average ${s.value}`;
+    return `<div class="fitrow">
+      <div class="hd"><span class="nm2">${kind}: ${s.label}</span><span class="gr ${s.fallback?'average':s.grade}">${s.fallback?'benched':s.grade+' fit'}</span></div>
+      <div class="why">${who}</div>
+      <div class="fitbar"><i class="${s.grade}" style="width:${pct}%"></i></div></div>`;
+  };
+  $("fitbox").innerHTML = one("Offense", f.offense) + one("Defense", f.defense);
+}
+
+function renderAll(){ renderBoard(); renderPbp(); renderLineup(); renderFit(); renderRolls(); if($("box").style.display !== "none") renderBox(); if(cardOpen) showCard(cardOpen); syncToggles(); if(G.over) renderFinal(); }
+
+function renderFinal(){
+  const b = Engine.boxScore(G), [A,B] = b.teams, me = G.teams[0];
+  const won = b.score[0] > b.score[1];
+  const ot = b.periods > 2 ? ` (${b.periods-2}OT)` : "";
+  const top = (t) => [...t.players].sort((x,y)=>y.pts-x.pts).slice(0,3).map(p=>`<div class="tp"><span>${p.name} <span class="arch">${p.pos}</span></span><b>${p.pts} pts, ${p.oreb+p.dreb} reb, ${p.ast} ast</b></div>`).join("");
+  const pc = (m,a) => a ? Math.round(100*m/a)+"%" : "–";
+  const splits = (t) => { const s=t.totals; return `<div class="splits">FG <b>${s.fgm}-${s.fga}</b> (${pc(s.fgm,s.fga)}) · 3P <b>${s.tpm}-${s.tpa}</b> (${pc(s.tpm,s.tpa)}) · FT <b>${s.ftm}-${s.fta}</b> · REB <b>${s.oreb+s.dreb}</b> · AST <b>${s.ast}</b> · TO <b>${s.tov}</b></div>`; };
+  $("final").innerHTML = `
+    <div class="hdr">
+      <div class="res">Final${ot}: ${A.name} ${b.score[0]}, ${B.name} ${b.score[1]} — <span style="color:${won?'var(--green)':'var(--red)'}">${won?'you won':'you lost'}</span></div>
+      <div style="display:flex;gap:6px"><button class="quiet" onclick="showTab('box')">Full box score</button><button class="quiet" onclick="rematch()">Rematch (new seed)</button><button onclick="mainMenu()">Main menu</button></div>
+    </div>
+    <div class="cols">
+      <div><div class="lead">${A.name}</div>${top(A)}${splits(A)}</div>
+      <div><div class="lead">${B.name}</div>${top(B)}${splits(B)}</div>
+    </div>`;
+  $("final").classList.add("show");
+}
+function mainMenu(){
+  pause(); hideCard();
+  $("game").style.display = "none"; $("setupWrap").style.display = ""; $("emptyHint").style.display = "";
+  $("final").classList.remove("show"); $("final").innerHTML = ""; banner("");
+  G = null;
+}
+/* same rosters and rotation, fresh dice */
+function rematch(){
+  if(!teams) return;
+  $("seed").value = Math.floor(Math.random()*1e6);
+  const seed = +$("seed").value;
+  G = Engine.createGame(teams[0], teams[1], { seed, debug: true });
+  pbpCount = 0; playing = false; view = null; renderRolls(true); for (const k in alerted) delete alerted[k];
+  $("pbp").innerHTML = ""; $("final").classList.remove("show"); $("final").innerHTML = ""; banner("");
+  showTab("pbp"); renderAll();
+}
+function showTab(t){
+  $("pbp").style.display = t==="pbp" ? "" : "none"; $("box").style.display = t==="box" ? "" : "none"; $("rolls").style.display = t==="rolls" ? "" : "none";
+  $("tabPbp").classList.toggle("on", t==="pbp"); $("tabBox").classList.toggle("on", t==="box"); $("tabRolls").classList.toggle("on", t==="rolls");
+  if(t==="box") renderBox();
+  if(t==="rolls") renderRolls();
+}
+/* the engine's roll trace: every roll with its odds, a gold header per possession */
+let rollCount = 0;
+function renderRolls(reset){
+  const el = $("rolls");
+  if(reset){ el.innerHTML = ""; rollCount = 0; }
+  if(!G || !G.debug || el.style.display === "none") return;
+  const frag = document.createDocumentFragment();
+  for(; rollCount < G.debug.length; rollCount++){
+    const line = G.debug[rollCount], d = document.createElement("div");
+    if(line.startsWith("──")) d.className = "ph";
+    d.textContent = line; frag.appendChild(d);
+  }
+  el.appendChild(frag); el.scrollTop = el.scrollHeight;
+}
+document.addEventListener("keydown", e => { if(e.key === "Escape") hideCard(); });
+/* what the ticker has revealed so far — the board follows this, not the engine, while lines are still appearing */
+let view = null;
+const fmtClock = (c) => { const m = Math.floor(Math.max(0,c)/60), s = Math.floor(Math.max(0,c)%60); return `${m}:${String(s).padStart(2,"0")}`; };
+function renderBoard(snap){
+  const v = snap || { score: [G.teams[0].score, G.teams[1].score], clock: G.clock, period: G.period };
+  const per = v.period===0 ? "Pregame" : v.period<=2 ? `Half ${v.period}` : `OT${v.period-2}`;
+  const tos = (t) => "●".repeat(t.timeouts) + "○".repeat(Math.max(0, TUNING.timeout.perGame - t.timeouts));
+  const st = (t) => `${TUNING.styles.offense[t.coach.offense].label} / ${TUNING.styles.defense[t.coach.defense].label}${t.buff>0?' · out of TO':''}`;
+  const [A,B] = G.teams;
+  const run = G.run.pts >= 4 && G.run.teamIdx >= 0 ? `<div style="color:var(--amber)">${G.teams[G.run.teamIdx].name} ${G.run.pts}-0 run</div>` : "";
+  let lateNote = "";
+  if(!snap && !G.over && G.period >= 2){
+    const lc = Engine.lateContext(G);
+    const who = G.teams[G.offIdx].abbr || G.teams[G.offIdx].name;
+    const dw = G.teams[1-G.offIdx].abbr || G.teams[1-G.offIdx].name;
+    const m = { hold:`${who} holding for the last shot`, chase:`${who} working for a quick score`, milk:`${who} running clock`, hurry:`${who} pushing the pace` }[lc.offMode];
+    const bits = [];
+    if(m) bits.push(m);
+    if(lc.huntThree) bits.push(`${who} needs a three`);
+    if(lc.defFoul) bits.push(`${dw} fouling to stop the clock`);
+    if(bits.length) lateNote = `<div style="color:var(--gold);font-size:11px;margin-top:2px">${bits.join(" · ")}</div>`;
+  }
+  $("board").innerHTML = `
+    <div class="team"><span class="dot" style="background:${A.color}"></span><div><div>${A.name}${A.mascot?` <span style="color:var(--dim)">${A.mascot}</span>`:""}</div><div class="num score">${v.score[0]}</div><div class="tos">${tos(A)}</div><div class="style">${st(A)}</div></div></div>
+    <div class="mid"><div>${per}${G.over && !snap?' — Final':''}</div><div class="num clk">${fmtClock(v.clock)}</div>${snap ? "" : `<div>shot clock ${Math.max(0,Math.round(G.shotClock))}</div>`}${snap ? "" : run}${lateNote}</div>
+    <div class="team right"><div><div>${B.name}${B.mascot?` <span style="color:var(--dim)">${B.mascot}</span>`:""}</div><div class="num score">${v.score[1]}</div><div class="tos">${tos(B)}</div><div class="style">${st(B)}</div></div><span class="dot" style="background:${B.color}"></span></div>`;
+}
+function pbpClass(e){
+  const cls = ["ev"];
+  if(e.teamIdx===0) cls.push("a"); else if(e.teamIdx===1) cls.push("b");
+  if((e.type==="shot"||e.type==="ft") && e.made) cls.push("made");
+  if(e.type==="steal"||e.type==="turnover") cls.push("tov");
+  if(e.type==="sub") cls.push("sub");
+  if(e.type==="timeout"||e.type==="media_timeout") cls.push("to");
+  if(["tip","period_start","period_end","end_game"].includes(e.type)) cls.push("period");
+  return cls.join(" ");
+}
+function renderPbpOne(){
+  const el = $("pbp");
+  while(pbpCount < G.events.length){
+    const e = G.events[pbpCount++];
+    const line = TEXT.describe(e);
+    if(!line) continue;
+    const div = document.createElement("div"); div.className = pbpClass(e);
+    div.innerHTML = `<span class="t">${TEXT.clock(e)}</span><span class="txt">${line}</span><span class="s num">${e.score ? `${e.score[0]}–${e.score[1]}` : ""}</span>`;
+    el.appendChild(div); el.scrollTop = el.scrollHeight;
+    if(!view) view = { score: [0,0], clock: e.clock, period: e.period };
+    view.clock = e.clock; view.period = e.period;
+    if(e.score) view.score = e.score.slice();
+    if(playing) renderBoard(view);
+    return;
+  }
+}
+function renderPbp(reset){
+  if(reset){ $("pbp").innerHTML = ""; pbpCount = 0; }
+  while(pbpCount < G.events.length) renderPbpOne();
+}
+function energyBar(p){
+  const e = Math.round(100*p.energy), cls = e < 45 ? "low" : e < 70 ? "mid" : "";
+  return `<div class="bar" title="energy ${e}%"><i class="${cls}" style="width:${e}%"></i></div>`;
+}
+function pfCell(p){
+  const cls = p.fouledOut || p.stats.pf >= 4 ? "bad" : p.stats.pf >= 3 ? "warn" : "";
+  return `<span class="pf ${cls}">${p.fouledOut ? "OUT" : p.stats.pf}</span>`;
+}
+function renderLineup(){
+  const t = G.teams[0], onCourt = t.onCourt.map(id => G.byId[id]);
+  const bench = t.players.filter(p => !t.onCourt.includes(p.id)).sort((a,b)=>(t.rotation[b.id]||0)-(t.rotation[a.id]||0));
+  const manual = t.control === "manual";
+  $("lineupTitle").textContent = manual ? "Your bench — you're coaching" : "Your bench — auto-coach on";
+  const benchOpts = () => `<option value="">sub…</option>` + bench.filter(p=>!p.fouledOut).map(p=>`<option value="${p.id}">${p.name.split(" ").pop()} ${p.pos} ${Math.round(100*p.energy)}%</option>`).join("");
+  const row = (p, on) => `<tr class="${on?'':'out'}">
+      <td class="nm" onclick="showCard('${p.id}')">${p.name}<small>${p.pos}</small></td>
+      <td>${ovrCell(p)}</td>
+      <td>${energyBar(p)}</td><td>${pfCell(p)}</td>
+      <td class="num">${p.stats.pts}</td><td>${Math.round(p.stats.sec/60)}<span style="color:var(--dim)">/${t.rotation[p.id]||0}</span></td>
+      <td>${on && manual ? `<select onchange="doSub('${p.id}', this.value)">${benchOpts()}</select>` : ""}</td></tr>`;
+  $("lineup").innerHTML = `
+    <div class="sect">On the floor</div>
+    <table><thead><tr><th>Player</th><th>OVR</th><th>Energy</th><th>PF</th><th>Pts</th><th>Min</th><th></th></tr></thead>
+    <tbody>${onCourt.map(p=>row(p,true)).join("")}</tbody></table>
+    <div class="sect">Bench</div>
+    <table><tbody>${bench.map(p=>row(p,false)).join("")}</tbody></table>
+    ${manual ? "" : `<p class="hint" style="margin-top:8px">Auto-coach follows the rotation you set. Toggle it off to make your own subs.</p>`}`;
+}
+/* live OVR: base, with the fatigue drop in red next to it */
+function ovrCell(p){
+  const r = Engine.effRatings(G, p), d = r.ovr - r.effOvr;
+  return `<span class="ovrCell">${r.effOvr}${d>0?`<span class="drop">-${d}</span>`:""}</span>`;
+}
+
+const RATING_GROUPS = [
+  ["Scoring", [["close","Close"],["mid","Mid"],["three","Three"]]],
+  ["Playmaking", [["pass","Pass"],["handle","Handle"]]],
+  ["Defense", [["perDef","Per. D"],["intDef","Int. D"],["steal","Steal"],["block","Block"],["reb","Rebound"]]],
+  ["Physical", [["stamina","Stamina"]]],
+];
+function ratingLine(label, base, now){
+  const cls = now >= 75 ? "" : now >= 55 ? "mid" : "low";
+  const was = now < base ? `<span class="was">${base}</span>` : "";
+  return `<div class="rline"><span class="lbl">${label}</span>
+    <span class="rbar"><i style="width:${base}%"></i><b class="${cls}" style="width:${now}%"></b></span>
+    <span class="rval">${was}${now}</span></div>`;
+}
+function showCard(id){
+  const p = G.byId[id], r = Engine.effRatings(G, p), t = G.teams[p.teamIdx];
+  const drop = r.ovr - r.effOvr, s = p.stats;
+  const ht = p.height ? `${Math.floor(p.height/12)}'${p.height%12}"` : "";
+  const fg = s.fga ? `${s.fgm}-${s.fga}` : "0-0";
+  $("cardBody").innerHTML = `
+    <div class="top">
+      <div>
+        <div class="who">${p.name}</div>
+        <div class="meta">${p.pos}${p.archetype?` · ${p.archetype}`:""}${p.wildcard?` · <span style="color:var(--gold)">${p.wildcard}</span>`:""} · ${ht} · ${t.name}${p.starter?" · starter":""} · ${Math.round(s.sec/60)} min of ${t.rotation[p.id]||0}${p.fouledOut?" · <span style='color:var(--red)'>fouled out</span>":""}</div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div class="ovrBig"><b>${r.effOvr}</b>
+          <div class="sub">${drop>0 ? `${r.ovr} rested · <span class="down">-${drop} tired</span>` : "at full strength"}</div>
+          <div class="sub">energy ${Math.round(100*r.energy)}%</div>
+        </div>
+        <button class="close" onclick="hideCard()">×</button>
+      </div>
+    </div>
+    ${RATING_GROUPS.map(([g, keys]) => `<div class="rgroup"><h4>${g}</h4>
+      ${keys.map(([k,l]) => ratingLine(l, r.base[k], r.now[k])).join("")}</div>`).join("")}
+    <div class="statline">
+      <div>PTS<b>${s.pts}</b></div><div>FG<b>${fg}</b></div><div>3P<b>${s.tpm}-${s.tpa}</b></div>
+      <div>FT<b>${s.ftm}-${s.fta}</b></div><div>REB<b>${s.oreb+s.dreb}</b></div><div>AST<b>${s.ast}</b></div>
+      <div>STL<b>${s.stl}</b></div><div>BLK<b>${s.blk}</b></div><div>TO<b>${s.tov}</b></div><div>PF<b>${s.pf}</b></div>
+    </div>`;
+  $("cardBg").classList.add("show");
+  cardOpen = id;
+}
+function hideCard(){ $("cardBg").classList.remove("show"); cardOpen = null; }
+
+function renderBox(){
+  const b = Engine.boxScore(G);
+  $("box").innerHTML = b.teams.map(t=>{
+    const rows = t.players.filter(p=>p.min>0 || p.starter).map(p=>`
+      <tr class="${p.starter?'starter':''}"><td style="cursor:pointer" onclick="showCard('${p.id}')">${p.name} <span style="color:var(--dim)">${p.pos}</span></td><td>${p.min}</td><td>${p.pts}</td><td>${p.fgm}-${p.fga}</td><td>${p.tpm}-${p.tpa}</td><td>${p.ftm}-${p.fta}</td><td>${p.oreb}-${p.dreb}</td><td>${p.ast}</td><td>${p.stl}</td><td>${p.blk}</td><td>${p.tov}</td><td>${p.pf}</td></tr>`).join("");
+    const s = t.totals;
+    return `<div style="margin-bottom:6px"><span class="dot" style="display:inline-block;background:${t.color};vertical-align:middle;margin-right:6px"></span><strong>${t.name}</strong> <span style="color:var(--dim);font-size:12px">${TUNING.styles.offense[t.coach.offense].label} / ${TUNING.styles.defense[t.coach.defense].label}, coach ${t.coach.rating}</span></div>
+    <table class="box"><thead><tr><th>Player</th><th>Min</th><th>Pts</th><th>FG</th><th>3P</th><th>FT</th><th>O-D</th><th>Ast</th><th>Stl</th><th>Blk</th><th>TO</th><th>PF</th></tr></thead>
+    <tbody>${rows}<tr class="total"><td>Team</td><td></td><td>${s.pts}</td><td>${s.fgm}-${s.fga}</td><td>${s.tpm}-${s.tpa}</td><td>${s.ftm}-${s.fta}</td><td>${s.oreb}-${s.dreb}</td><td>${s.ast}</td><td>${s.stl}</td><td>${s.blk}</td><td>${s.tov}</td><td>${s.pf}</td></tr></tbody></table>`;
+  }).join("");
+}
+</script>
+</body>
+</html>

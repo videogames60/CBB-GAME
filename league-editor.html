@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>League Editor</title>
+<style>
+  :root{
+    --bg:#101820; --panel:#182230; --panel2:#1f2b3b; --line:rgba(255,255,255,.08);
+    --ink:#EEE9DD; --dim:#95A0B3; --gold:#E4B93F; --green:#5BB07F; --red:#D5574D; --amber:#E0964A; --court:#C89056;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+  h1{font-size:18px;margin:0;font-weight:700}
+  h2{font-size:12px;color:var(--dim);margin:0 0 10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  label{font-size:11px;color:var(--dim);display:block;margin-bottom:3px}
+  input,select{background:var(--panel2);color:var(--ink);border:1px solid var(--line);border-radius:4px;padding:5px 7px;font-size:13px;font-family:inherit}
+  input[type=text]{width:170px} input[type=number]{width:64px}
+  input[type=color]{width:40px;height:30px;padding:2px}
+  input:focus,select:focus{outline:1px solid var(--gold)}
+  input[type=number]{-moz-appearance:textfield;appearance:textfield}
+  input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+  #main,.grid2>*{min-width:0}
+  input.bad{border-color:var(--red)}
+  button{background:var(--gold);color:#1b1405;border:0;border-radius:4px;padding:7px 12px;font-weight:700;cursor:pointer;font-size:13px;white-space:nowrap;font-family:inherit}
+  button.quiet{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  button.danger{background:transparent;color:var(--red);border:1px solid rgba(213,87,77,.4)}
+  button.mini{padding:2px 7px;font-size:12px}
+  button:disabled{opacity:.35;cursor:default}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:12px}
+  .hint{color:var(--dim);font-size:12px;margin:6px 0 0}
+  .pill{display:inline-block;font-size:10px;padding:1px 6px;border-radius:9px;background:var(--panel2);color:var(--dim);border:1px solid var(--line);font-weight:600;vertical-align:middle}
+
+  /* layout */
+  .top{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel);border-bottom:1px solid var(--line);border-top:3px solid var(--court);padding:10px 16px}
+  .top .doc{color:var(--dim);font-size:13px}
+  .top .right{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .status{font-size:12px;font-weight:700;cursor:pointer;padding:5px 9px;border-radius:4px;border:1px solid var(--line)}
+  .status.ok{color:var(--green)} .status.badS{color:var(--red);border-color:rgba(213,87,77,.5)}
+  .body{display:grid;grid-template-columns:290px 1fr;gap:14px;padding:14px 16px 60px;max-width:1500px;margin:0 auto}
+  @media(max-width:900px){.body{grid-template-columns:1fr}}
+  .side{position:sticky;top:64px;align-self:start;max-height:calc(100vh - 80px);overflow:auto}
+  .side .item{display:flex;justify-content:space-between;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:13px}
+  .side .item:hover{background:var(--panel2)}
+  .side .item.on{background:var(--panel2);outline:1px solid var(--gold)}
+  .side .item small{color:var(--dim)}
+  .side .sch{padding-left:20px;font-size:12.5px}
+  .side .tier{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin:10px 8px 3px}
+  .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+  table{border-collapse:collapse;font-size:12px;width:100%}
+  th{text-align:left;color:var(--dim);font-weight:600;padding:5px 3px;border-bottom:1px solid var(--line);font-size:11px;white-space:nowrap;cursor:pointer;user-select:none}
+  th:hover{color:var(--ink)}
+  td{padding:3px 3px;border-bottom:1px solid var(--line);vertical-align:middle}
+  td input,td select{padding:3px 4px;font-size:12px}
+  td input.r{width:40px;text-align:right} td input.nm{width:150px} td input.ht{width:46px}
+  td input.n3{width:48px;text-align:right}
+  .ovr{font-weight:800;font-variant-numeric:tabular-nums;text-align:right;padding-right:6px}
+  .scroll{overflow-x:auto}
+  tr.hl td{background:rgba(228,185,63,.12)}
+  .r90 {color:#7fd6a0} .r80{color:var(--green)} .r60{color:var(--ink)} .r45{color:var(--amber)} .r0{color:var(--red)}
+  .welcome{max-width:720px;margin:40px auto}
+  .problems{max-height:260px;overflow:auto;font-size:12px}
+  .problems div{padding:3px 0;border-bottom:1px solid var(--line)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:1100px){.grid2{grid-template-columns:1fr}}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--gold);color:var(--ink);padding:9px 14px;border-radius:6px;font-size:13px;z-index:20;display:none}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>League editor</h1>
+  <span class="doc" id="docName"></span>
+  <div class="right">
+    <button class="quiet" onclick="showStart()">New / open…</button>
+    <button class="quiet" id="bUndo" onclick="undo()" title="Undo (Ctrl+Z)" disabled>Undo</button>
+    <span class="status" id="status" onclick="toggleProblems()"></span>
+    <button class="quiet" onclick="sendToGame()" title="Add this league to the game's League list in this browser (open the game the same way you opened this page)">Send to game</button>
+    <button onclick="saveFile()">Save file</button>
+  </div>
+</div>
+<div id="problems" class="card problems" style="display:none;margin:10px 16px 0"></div>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+<datalist id="cityList"></datalist>
+<input type="file" id="fileIn" accept=".json,application/json" style="display:none" onchange="openFile(this)">
+
+<script src="sim/tuning.js"></script>
+<script src="sim/text.js"></script>
+<script src="sim/engine.js"></script>
+<script src="sim/archetypes.js"></script>
+<script src="sim/sample_teams.js"></script>
+<script src="dynasty/geo.js"></script>
+<script src="dynasty/pipelines.js"></script>
+<script src="dynasty/leagues.js"></script>
+<script src="dynasty/league.js"></script>
+<script>
+/* =====================================================================
+   LEAGUE EDITOR — reads, edits and writes league files (README-leagues).
+   The working copy is always a complete league file: every school with its
+   coach and full roster. It uses the game's own code for generating players
+   and schools, overalls and checking the file, so what you see here is what
+   the game builds.
+   ===================================================================== */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const RATINGS = League.RATING_FIELDS;     // close mid three pass handle steal block perDef intDef reb stamina
+const RLABEL = { close: "Cls", mid: "Mid", three: "3PT", pass: "Pas", handle: "Hnd", steal: "Stl", block: "Blk", perDef: "PerD", intDef: "IntD", reb: "Reb", stamina: "Stm" };
+const POS = ["PG", "SG", "SF", "PF", "C"], CLS = ["FR", "SO", "JR", "SR"];
+const OFF = Object.keys(TUNING.styles.offense), DEF = Object.keys(TUNING.styles.defense);
+const GAME_KEY = "hoopsDynasty.leagueFiles", DRAFT_KEY = "hoopsEditor.draft";
+const EDITOR_ID = "__editor__";
+
+let DOC = null;                 // the league file being edited
+let VIEW = { kind: "league" };  // league | conf {ci} | school {ci, si, hl}
+let UNDO = [];
+let SORT = { key: null, dir: -1 };
+let rng = Engine.makeRng((Date.now() & 0xffffffff) >>> 0);
+
+const ovrOf = (p) => Engine.overall(TUNING, p.pos, p.ratings);
+const levelOf = (school) => clamp(Math.round(34 + school.prestige * 0.42), 30, 88);
+const htText = (h) => h ? `${Math.floor(h / 12)}-${h % 12}` : "";
+const rc = (v) => v >= 90 ? "r90" : v >= 80 ? "r80" : v >= 60 ? "r60" : v >= 45 ? "r45" : "r0";
+function toast(msg){ const t = $("toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", 3200); }
+function download(obj, name){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 1)], { type: "application/json" }));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ---------------- loading: any league file becomes a complete one ---------------- */
+function importedGameLeagues(){ try { return JSON.parse(localStorage.getItem(GAME_KEY) || "[]"); } catch (e) { return []; } }
+/* build the league the game would build from this file (and seed), then write it out complete */
+function expand(raw, seed){
+  const c = Leagues.check(raw);
+  const def = { ...c.def, id: EDITOR_ID };
+  Leagues.register(def);
+  const lg = League.generateLeague(seed, { league: EDITOR_ID });
+  delete Leagues.LEAGUES[EDITOR_ID];
+  const out = League.exportDefinition(lg, { id: c.def.id, name: c.def.name, blurb: c.def.blurb, defaultConf: c.def.defaultConf });
+  out.tierPrestige = c.def.tierPrestige;
+  if (raw.rules) out.rules = { ...raw.rules };
+  // what the file left out (filled in from the seed)
+  let schools = 0, players = 0;
+  (raw.conferences || []).forEach((cf, i) => { const n = c.def.conferences[i] ? c.def.conferences[i].size : 0, given = (cf.schools || []);
+    schools += Math.max(0, n - given.length); for (const s of given) players += Math.max(0, League.ROSTER_SIZE - (s.players || []).length); });
+  return { doc: out, errors: c.errors, filled: { schools, players } };
+}
+function loadDoc(doc, name){
+  DOC = doc; UNDO = []; VIEW = { kind: "league" }; SORT = { key: null, dir: -1 };
+  $("docName").textContent = name || DOC.name;
+  render(); saveDraft();
+}
+
+function showStart(){
+  const imported = importedGameLeagues();
+  let draft = null; try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch (e) {}
+  $("app").innerHTML = `<div class="welcome">
+    <div class="card"><h2>Start from a league</h2>
+      <div class="row">
+        <div><label>League</label><select id="stLeague">${Leagues.list().filter(d => d.id !== EDITOR_ID).map(d => `<option value="b:${d.id}">${esc(d.name)} — ${d.teams} teams</option>`).join("")}
+          ${imported.map(d => `<option value="i:${esc(d.id)}">${esc(d.name)} (imported in the game)</option>`).join("")}</select></div>
+        <div><label>Seed</label><input type="number" id="stSeed" value="42" style="width:90px"></div>
+        <button onclick="startFrom()">Start editing</button>
+      </div>
+      <p class="hint">Every school, coach and player that seed makes, ready to change. The same league and seed in the game give the same schools.</p>
+    </div>
+    <div class="card"><h2>Open a league file</h2>
+      <button class="quiet" onclick="$('fileIn').click()">Open file…</button>
+      <p class="hint">A file exported from the game (setup screen or League tab), or one saved from here. Anything the file leaves out is filled in from seed <input type="number" id="openSeed" value="42" style="width:80px">.</p>
+    </div>
+    ${draft && draft.doc ? `<div class="card"><h2>Unsaved draft</h2>
+      <div class="row"><button class="quiet" onclick="resumeDraft()">Resume “${esc(draft.doc.name)}”</button><span class="hint" style="margin:0">last change ${new Date(draft.at).toLocaleString()}</span></div></div>` : ""}
+    ${DOC ? `<button class="quiet" onclick="render()">← Back to ${esc(DOC.name)}</button>` : ""}
+  </div>`;
+}
+function startFrom(){
+  const v = $("stLeague").value, seed = +$("stSeed").value || 42;
+  let raw;
+  if (v.startsWith("b:")) { const d = Leagues.get(v.slice(2)); raw = { ...d, id: d.id + "-" + seed, name: `${d.name} (seed ${seed})`, blurb: "", conferences: d.conferences.map(c => ({ ...c })) }; }
+  else raw = importedGameLeagues().find(d => d.id === v.slice(2));
+  const r = expand(raw, seed);
+  loadDoc(r.doc);
+}
+function openFile(input){
+  const f = input.files && input.files[0]; if (!f) return;
+  f.text().then(txt => {
+    let raw; try { raw = JSON.parse(txt); } catch (e) { alert("That file isn't valid JSON: " + e.message); return; }
+    if (!raw || !Array.isArray(raw.conferences)) { alert("That doesn't look like a league file (no \"conferences\" list)."); return; }
+    const r = expand(raw, +(($("openSeed") || {}).value) || 42);
+    loadDoc(r.doc, f.name);
+    const notes = [];
+    if (r.filled.schools || r.filled.players) notes.push(`Filled in what the file left out: ${r.filled.schools} school${r.filled.schools === 1 ? "" : "s"}, ${r.filled.players} player${r.filled.players === 1 ? "" : "s"}.`);
+    if (r.errors.length) notes.push(`The file had ${r.errors.length} problem${r.errors.length > 1 ? "s" : ""}; those values were left out:\n• ` + r.errors.slice(0, 12).join("\n• "));
+    if (notes.length) alert(notes.join("\n\n"));
+  }).finally(() => { input.value = ""; });
+}
+function resumeDraft(){ try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY)); loadDoc(d.doc, d.name); } catch (e) { alert("The draft couldn't be read."); } }
+let draftTimer = null, draftFailed = false;
+function saveDraft(){
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(() => {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ doc: DOC, name: $("docName").textContent, at: Date.now() })); draftFailed = false; }
+    catch (e) { if (!draftFailed) toast("Draft too big to keep in this browser — save the file to keep your changes."); draftFailed = true; }
+  }, 800);
+}
+
+/* ---------------- editing, with undo ---------------- */
+/* every edit goes through here: a path into DOC and the new value */
+function getPath(path){ return path.reduce((o, k) => o[k], DOC); }
+function setPath(path, value, quiet){
+  const parent = getPath(path.slice(0, -1)), k = path[path.length - 1];
+  if (parent[k] === value) return;
+  UNDO.push({ path, old: parent[k] === undefined ? undefined : JSON.parse(JSON.stringify(parent[k])) });
+  if (UNDO.length > 200) UNDO.shift();
+  if (value === undefined) delete parent[k]; else parent[k] = value;
+  changed(quiet);
+}
+/* bigger changes (add, delete, move, regenerate) keep a copy of the whole file */
+function snapshot(){ UNDO.push({ snap: JSON.stringify(DOC), view: { ...VIEW } }); if (UNDO.length > 200) UNDO.shift(); }
+function undo(){
+  const u = UNDO.pop(); if (!u) return;
+  if (u.snap) { DOC = JSON.parse(u.snap); VIEW = u.view; }
+  else { const parent = getPath(u.path.slice(0, -1)), k = u.path[u.path.length - 1]; if (u.old === undefined) delete parent[k]; else parent[k] = u.old; }
+  changed(); render();
+}
+let checkTimer = null;
+function changed(quiet){
+  $("bUndo").disabled = !UNDO.length;
+  saveDraft();
+  clearTimeout(checkTimer); checkTimer = setTimeout(runCheck, 250);
+}
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+    if (document.activeElement && ["INPUT", "SELECT"].includes(document.activeElement.tagName)) return;   // let the box undo its own typing
+    e.preventDefault(); undo();
+  }
+});
+
+/* ---------------- problems (the game's own check) ---------------- */
+let PROBLEMS = [];
+function runCheck(){
+  PROBLEMS = DOC ? Leagues.check(DOC).errors : [];
+  const s = $("status");
+  s.className = "status " + (PROBLEMS.length ? "badS" : "ok");
+  s.textContent = PROBLEMS.length ? `${PROBLEMS.length} problem${PROBLEMS.length > 1 ? "s" : ""}` : "✓ No problems";
+  if ($("problems").style.display !== "none") drawProblems();
+}
+function drawProblems(){ $("problems").innerHTML = `<h2>Problems — the game won't import the file until these are fixed</h2>` + (PROBLEMS.map(p => `<div>${esc(p)}</div>`).join("") || `<div>None.</div>`); }
+function toggleProblems(){ const p = $("problems"); p.style.display = p.style.display === "none" ? "" : "none"; if (p.style.display !== "none") drawProblems(); }
+
+/* ---------------- save / send ---------------- */
+function cleanForSave(){
+  const out = JSON.parse(JSON.stringify(DOC));
+  for (const c of out.conferences) c.size = c.schools.length;
+  return out;
+}
+function saveFile(){
+  if (!DOC) return;
+  runCheck();
+  if (PROBLEMS.length && !confirm(`The file has ${PROBLEMS.length} problem${PROBLEMS.length > 1 ? "s" : ""}, so the game won't import it until they're fixed. Save anyway?`)) return;
+  download(cleanForSave(), `${DOC.id || "league"}.json`);
+}
+function sendToGame(){
+  if (!DOC) return;
+  runCheck();
+  if (PROBLEMS.length) { alert(`Fix the ${PROBLEMS.length} problem${PROBLEMS.length > 1 ? "s" : ""} first (click the red count to see them).`); return; }
+  const c = Leagues.check(cleanForSave());
+  if (["compact", "full"].includes(c.def.id)) c.def.id += "-custom";
+  try {
+    const list = importedGameLeagues().filter(d => d.id !== c.def.id); list.push(c.def);
+    localStorage.setItem(GAME_KEY, JSON.stringify(list));
+    toast(`“${c.def.name}” is in the game's League list (reload the game page if it's open).`);
+  } catch (e) {
+    alert("This browser's storage is full (it holds about 5 MB, and a full-size league is 1.6 MB). Use Save file and import it in the game instead.");
+  }
+}
+
+/* ---------------- generating (the game's own generators) ---------------- */
+function newPlayer(school, conf, opts = {}){
+  const used = school.players.map(p => p.pos);
+  const pos = opts.pos || POS.slice().sort((a, b) => used.filter(x => x === a).length - used.filter(x => x === b).length)[0];
+  const p = League.filePlayer(rng, "x", { name: opts.name, pos, class: opts.class || "FR" }, school.city, levelOf(school));
+  return League.playerToFile(p);
+}
+function newRoster(school, conf){
+  return League.makeRoster(rng, "x" + Math.floor(rng() * 1e9), levelOf(school), school.city).map(League.playerToFile);
+}
+function newSchool(conf){
+  const usedNames = new Set(DOC.conferences.flatMap(c => c.schools.map(s => s.name)));
+  const usedAbbr = new Set(DOC.conferences.flatMap(c => c.schools.map(s => s.abbr)));
+  const usedCities = new Set(DOC.conferences.flatMap(c => c.schools.map(s => s.city)));
+  const t = League.makeSchool(rng, { id: "x", conf, tier: conf.tier, usedNames, usedAbbr, usedCities, def: DOC });
+  Pipelines.init({ teams: [t] }, rng);
+  return League.schoolToFile(t);
+}
+function newConfId(){ let i = 1; while (DOC.conferences.some(c => c.id === "NEW" + i)) i++; return "NEW" + i; }
+
+/* ---------------- actions ---------------- */
+const cur = () => ({ conf: DOC.conferences[VIEW.ci], school: VIEW.si != null ? DOC.conferences[VIEW.ci].schools[VIEW.si] : null });
+function go(kind, ci, si, hl){ VIEW = { kind, ci, si, hl }; SORT = { key: null, dir: -1 }; render(); window.scrollTo(0, 0); }
+
+function addConference(){
+  snapshot();
+  const conf = { id: newConfId(), name: "New Conference", short: "NC", tier: 3, size: 0, region: "Midwest", schools: [] };
+  DOC.conferences.push(conf);
+  for (let i = 0; i < 8; i++) conf.schools.push(newSchool(conf));
+  conf.size = conf.schools.length;
+  changed(); go("conf", DOC.conferences.length - 1);
+}
+function deleteConference(ci){
+  const c = DOC.conferences[ci];
+  if (DOC.conferences.length <= 2) { alert("A league needs at least 2 conferences."); return; }
+  if (!confirm(`Delete the ${c.name} and its ${c.schools.length} schools?`)) return;
+  snapshot(); DOC.conferences.splice(ci, 1);
+  if (DOC.defaultConf === c.id) DOC.defaultConf = DOC.conferences[0].id;
+  changed(); go("league");
+}
+function addSchool(ci){
+  snapshot(); const conf = DOC.conferences[ci];
+  conf.schools.push(newSchool(conf)); conf.size = conf.schools.length;
+  changed(); go("school", ci, conf.schools.length - 1);
+}
+function deleteSchool(ci, si){
+  const conf = DOC.conferences[ci], s = conf.schools[si];
+  if (conf.schools.length <= 2) { alert("A conference needs at least 2 schools."); return; }
+  if (!confirm(`Delete ${s.name}?`)) return;
+  snapshot(); conf.schools.splice(si, 1); conf.size = conf.schools.length;
+  changed(); go("conf", ci);
+}
+function moveSchool(ci, si, toId){
+  const to = DOC.conferences.findIndex(c => c.id === toId); if (to < 0 || to === ci) return;
+  const from = DOC.conferences[ci];
+  if (from.schools.length <= 2) { alert("A conference needs at least 2 schools."); render(); return; }
+  snapshot(); const [s] = from.schools.splice(si, 1); DOC.conferences[to].schools.push(s);
+  from.size = from.schools.length; DOC.conferences[to].size = DOC.conferences[to].schools.length;
+  changed(); toast(`${s.name} moved to the ${DOC.conferences[to].name}.`); render();
+}
+function addPlayer(){
+  const { conf, school } = cur();
+  if (school.players.length >= League.ROSTER_SIZE) { alert(`A roster holds ${League.ROSTER_SIZE}. Delete someone first.`); return; }
+  snapshot(); school.players.push(newPlayer(school, conf)); changed(); render();
+}
+function deletePlayer(pi){ const { school } = cur(); snapshot(); school.players.splice(pi, 1); changed(); render(); }
+function regenPlayer(pi){
+  const { conf, school } = cur(), old = school.players[pi];
+  snapshot(); school.players[pi] = newPlayer(school, conf, { pos: old.pos, class: old.class }); changed(); render();
+}
+function regenRoster(){
+  const { conf, school } = cur();
+  if (!confirm(`Replace all of ${school.name}'s players with a new random roster at their prestige (${school.prestige})?`)) return;
+  snapshot(); school.players = newRoster(school, conf); changed(); render();
+}
+function regenCoach(){
+  const { school } = cur(); snapshot();
+  const c = League.makeCoach(rng, school.prestige);
+  school.coach = { name: c.name, rating: c.rating, recruiting: c.recruiting, development: c.development, scouting: c.scouting, offense: c.offense, defense: c.defense, years: c.years };
+  changed(); render();
+}
+
+/* field edits (from inputs) */
+function setLeague(k, v){ setPath([k], v); if (k === "name") $("docName").textContent = v; drawSide(); }
+function setRule(k, v){ if (!DOC.rules) DOC.rules = {}; setPath(["rules", k], v === "" ? undefined : clamp(Math.round(+v), 0, 500)); }
+function setTierPrestige(t, v){ if (!DOC.tierPrestige) DOC.tierPrestige = {}; setPath(["tierPrestige", t], clamp(Math.round(+v), 20, 96)); }
+/* a typed city: "Houston, TX" exactly, or a unique match on the name */
+function cityFromText(t){
+  t = String(t || "").trim(); if (Geo.CITY[t]) return t;
+  const m = Object.keys(Geo.CITY).filter(k => k.toLowerCase().startsWith(t.toLowerCase()));
+  return m.length === 1 ? m[0] : null;
+}
+function setStates(ci, text){
+  const known = new Set(Geo.STATES()), list = String(text).toUpperCase().split(/[^A-Z]+/).filter(Boolean);
+  const bad = list.filter(x => !known.has(x));
+  if (bad.length) { toast(`Unknown state code${bad.length > 1 ? "s" : ""}: ${bad.join(", ")}`); render(); return; }
+  setPath(["conferences", ci, "states"], list.length ? list : undefined);
+}
+/* pipelines: strength 0–100 per area */
+function setPipe(area, v){
+  const { school } = cur();
+  if (!school.pipelines) school.pipelines = {};
+  const n = Math.round(+v);
+  setPath(["conferences", VIEW.ci, "schools", VIEW.si, "pipelines", area], Number.isFinite(n) && n > 0 ? clamp(n, 0, 100) : undefined);
+  drawPipes();
+}
+function addPipe(area){ if (!area) return; setPipe(area, 30); }
+function setConf(ci, k, v){
+  if (k === "id") { v = String(v).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6); if (DOC.defaultConf === DOC.conferences[ci].id) DOC.defaultConf = v; }
+  if (k === "tier") v = clamp(Math.round(+v), 1, 4);
+  setPath(["conferences", ci, k], v); drawSide();
+}
+function setSchool(ci, si, k, v){
+  if (k === "city" && !Geo.CITY[v]) { toast("Pick a city from the list."); render(); return; }
+  if (k === "abbr") v = String(v).toUpperCase().replace(/[^A-Z0-9&]/g, "").slice(0, 4);
+  if (["prestige"].includes(k)) v = clamp(Math.round(+v), 20, 96);
+  if (["homeCourt", "facilities", "nil"].includes(k)) v = clamp(Math.round(+v), 1, 99);
+  setPath(["conferences", ci, "schools", si, k], v);
+  if (["name", "color", "prestige", "abbr"].includes(k)) drawSide();
+  if (k === "city" && VIEW.kind === "school") drawSchool();
+  if (VIEW.kind === "school" && ["name", "color", "abbr", "mascot"].includes(k)) drawSchoolHead();
+}
+function setCoach(k, v){
+  if (["rating", "recruiting", "development", "scouting"].includes(k)) v = clamp(Math.round(+v), 25, 99);
+  if (k === "years") v = clamp(Math.round(+v), 0, 60);
+  setPath(["conferences", VIEW.ci, "schools", VIEW.si, "coach", k], v);
+}
+function setPlayer(pi, k, v){
+  const base = ["conferences", VIEW.ci, "schools", VIEW.si, "players", pi];
+  const p = cur().school.players[pi];
+  if (k === "height") { const h = League.parseHeight(v); if (!h) { toast('Height like 6-8 or 80 (inches).'); drawRoster(); return; } v = clamp(h, 64, 92); }
+  if (["loyalty", "workRate"].includes(k)) v = clamp(Math.round(+v), 0, 99);
+  if (k === "potential") v = clamp(Math.round(+v), 25, 99);
+  if (k === "moneyWeight") v = clamp(Math.round(+v * 100) / 100, 0, 1);
+  if (k === "redshirt") v = v ? true : undefined;
+  if (k === "home") { v = cityFromText(v); if (!v) { toast("Hometown: pick a city from the list (\"Houston, TX\")."); drawRoster(); return; } }
+  if (k === "ovr") { setOvr(pi, +v); return; }
+  setPath([...base, k], v);
+  if (k === "pos") refreshOvr(pi);
+}
+function setRating(pi, k, v){
+  setPath(["conferences", VIEW.ci, "schools", VIEW.si, "players", pi, "ratings", k], clamp(Math.round(+v), 1, 99));
+  refreshOvr(pi);
+}
+/* typing a new overall moves his ratings (not stamina) up or down together until it lands */
+function setOvr(pi, target){
+  const p = cur().school.players[pi];
+  target = clamp(Math.round(target), 25, 99);
+  snapshot();
+  // big moves first, then one point at a time on whatever isn't capped at 1 or 99
+  for (let i = 0; i < 40; i++) {
+    const d = target - ovrOf(p); if (!d) break;
+    const step = Math.abs(d) > 2 ? d : Math.sign(d);
+    const free = RATINGS.filter(k => k !== "stamina" && (d > 0 ? p.ratings[k] < 99 : p.ratings[k] > 1));
+    if (!free.length) break;
+    for (const k of free) p.ratings[k] = clamp(p.ratings[k] + step, 1, 99);
+  }
+  changed(); refreshOvr(pi); drawRoster();
+}
+function refreshOvr(pi){
+  const p = cur().school.players[pi], o = ovrOf(p);
+  p.ovr = o;
+  if (p.potential < o) p.potential = o;
+  const cell = $("ovr" + pi); if (cell) { cell.value = o; cell.className = "r n3 " + rc(o); }
+  drawSchoolHead();
+}
+
+/* ---------------- views ---------------- */
+function render(){
+  if (!DOC) { showStart(); return; }
+  $("app").innerHTML = `<div class="body"><div class="side card" id="side"></div><div id="main"></div></div>`;
+  drawSide();
+  ({ league: drawLeague, conf: drawConf, school: drawSchool, search: drawSearch })[VIEW.kind]();
+  $("bUndo").disabled = !UNDO.length;
+  runCheck();
+}
+let SEARCH = "";
+function drawSide(){
+  const side = $("side"); if (!side) return;
+  const tiers = [...new Set(DOC.conferences.map(c => c.tier))].sort();
+  const nTeams = DOC.conferences.reduce((a, c) => a + c.schools.length, 0);
+  side.innerHTML = `
+    <div class="item ${VIEW.kind === "league" ? "on" : ""}" onclick="go('league')"><b>${esc(DOC.name)}</b><small>${nTeams} teams</small></div>
+    <input type="search" placeholder="Find a school or player…" value="${esc(SEARCH)}" style="width:100%;margin:8px 0 2px" oninput="SEARCH=this.value; if(SEARCH.trim().length>=2){VIEW={kind:'search'}; drawSearch();} else if(VIEW.kind==='search'){go('league')}">
+    ${tiers.map(t => `<div class="tier">Tier ${t}</div>` + DOC.conferences.map((c, ci) => c.tier !== t ? "" : `
+      <div class="item ${VIEW.kind === "conf" && VIEW.ci === ci ? "on" : ""}" onclick="go('conf',${ci})"><span>${esc(c.name)}</span><small>${c.schools.length}</small></div>
+      ${VIEW.ci === ci && (VIEW.kind === "conf" || VIEW.kind === "school") ? c.schools.map((s, si) => `
+        <div class="item sch ${VIEW.kind === "school" && VIEW.si === si ? "on" : ""}" onclick="go('school',${ci},${si})"><span><span class="sw" style="background:${esc(s.color)}"></span>${esc(s.name)}</span><small>${s.prestige}</small></div>`).join("") : ""}`).join("")).join("")}
+    <button class="quiet mini" style="margin-top:10px" onclick="addConference()">+ Conference</button>`;
+}
+function summary(){
+  const all = DOC.conferences.flatMap(c => c.schools.flatMap(s => s.players.map(p => ({ p, tier: c.tier }))));
+  const avg = (a) => a.length ? (a.reduce((x, y) => x + y, 0) / a.length).toFixed(1) : "—";
+  const tiers = [...new Set(DOC.conferences.map(c => c.tier))].sort();
+  return `${all.length} players · average overall ${avg(all.map(x => ovrOf(x.p)))}` + tiers.map(t => ` · tier ${t}: ${avg(all.filter(x => x.tier === t).map(x => ovrOf(x.p)))}`).join("");
+}
+function drawLeague(){
+  const r = DOC.rules || {}, tp = DOC.tierPrestige || {};
+  const auto = Leagues.rulesFor({ conferences: DOC.conferences.map(c => ({ ...c, size: c.schools.length })) });
+  $("main").innerHTML = `
+  <div class="card"><h2>League</h2>
+    <div class="row">
+      <div><label>Name</label><input type="text" value="${esc(DOC.name)}" onchange="setLeague('name',this.value)" style="width:240px"></div>
+      <div><label>File id</label><input type="text" value="${esc(DOC.id)}" onchange="setLeague('id',this.value.replace(/[^\\w-]/g,'').slice(0,24)||'custom')" style="width:170px"></div>
+      <div><label>Default conference</label><select onchange="setLeague('defaultConf',this.value)">${DOC.conferences.map(c => `<option value="${esc(c.id)}" ${c.id === DOC.defaultConf ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></div>
+    </div>
+    <div class="row" style="margin-top:8px"><div style="flex:1"><label>Description</label><input type="text" value="${esc(DOC.blurb || "")}" onchange="setLeague('blurb',this.value)" style="width:100%"></div></div>
+    <p class="hint">${summary()}</p>
+  </div>
+  <div class="grid2">
+  <div class="card"><h2>Rules</h2>
+    <div class="row">
+      ${[["nonConfGames", "Non-conference games"], ["confGames", "Conference games (0 = home and away)"], ["confTourney", "Conference tournament teams (0 = all)"], ["natField", "National tournament teams"]].map(([k, l]) =>
+        `<div><label>${l}</label><input type="number" value="${r[k] != null ? r[k] : ""}" placeholder="${auto[k]}" onchange="setRule('${k}',this.value)"></div>`).join("")}
+    </div>
+    <p class="hint">Empty = sized to the league (shown faded). A national field that isn't 8, 16, 32 or 64 gets play-in games: 68 = 64 + a First Four.</p>
+  </div>
+  <div class="card"><h2>Average prestige by tier</h2>
+    <div class="row">${[1, 2, 3, 4].map(t => `<div><label>Tier ${t}</label><input type="number" value="${tp[t] != null ? tp[t] : ""}" onchange="setTierPrestige(${t},this.value)"></div>`).join("")}</div>
+    <p class="hint">Only used for schools made up later (a new school here, or one a sparse file leaves out). Every school's own prestige is on its page.</p>
+  </div></div>
+  <div class="card"><h2>Conferences</h2>
+    <table><thead><tr><th>Conference</th><th>Id</th><th>Tier</th><th>Region</th><th>Schools</th><th>Avg prestige</th><th>Avg overall</th></tr></thead><tbody>
+    ${DOC.conferences.map((c, ci) => { const pr = c.schools.map(s => s.prestige), ov = c.schools.flatMap(s => s.players.map(ovrOf));
+      return `<tr style="cursor:pointer" onclick="go('conf',${ci})"><td>${esc(c.name)}</td><td>${esc(c.id)}</td><td>${c.tier}</td><td>${esc(c.region)}</td><td>${c.schools.length}</td>
+        <td>${(pr.reduce((a, b) => a + b, 0) / Math.max(1, pr.length)).toFixed(0)}</td><td>${(ov.reduce((a, b) => a + b, 0) / Math.max(1, ov.length)).toFixed(1)}</td></tr>`; }).join("")}
+    </tbody></table>
+  </div>`;
+}
+function drawConf(){
+  const ci = VIEW.ci, c = DOC.conferences[ci];
+  $("main").innerHTML = `
+  <div class="card"><h2>Conference</h2>
+    <div class="row">
+      <div><label>Name</label><input type="text" value="${esc(c.name)}" onchange="setConf(${ci},'name',this.value)" style="width:220px"></div>
+      <div><label>Id</label><input type="text" value="${esc(c.id)}" onchange="setConf(${ci},'id',this.value)" style="width:80px"></div>
+      <div><label>Short</label><input type="text" value="${esc(c.short)}" maxlength="4" onchange="setConf(${ci},'short',this.value)" style="width:60px"></div>
+      <div><label>Tier</label><select onchange="setConf(${ci},'tier',+this.value)">${[1, 2, 3, 4].map(t => `<option ${t === c.tier ? "selected" : ""}>${t}</option>`).join("")}</select></div>
+      <div><label>Region (placement)</label><select onchange="setConf(${ci},'region',this.value)">${Leagues.REGIONS.map(r => `<option ${r === c.region ? "selected" : ""}>${r}</option>`).join("")}</select></div>
+      <div><label>Or these states</label><input type="text" value="${esc((c.states || []).join(", "))}" placeholder="${esc(Geo.REGION_STATES[c.region].join(", "))}" onchange="setStates(${ci},this.value)" style="width:230px"></div>
+      <div style="margin-left:auto" class="row"><button class="quiet" onclick="addSchool(${ci})">+ School</button><button class="danger" onclick="deleteConference(${ci})">Delete conference</button></div>
+    </div>
+    <p class="hint">Region (or a list of states) only decides where new made-up schools are placed; each school's own city is what recruiting uses. Tier is used for made-up schools' prestige and the setup list.</p>
+  </div>
+  <div class="card"><h2>Schools — ${c.schools.length}</h2><div class="scroll">
+    <table><thead><tr><th></th><th>School</th><th>Mascot</th><th>City</th><th>Abbr</th><th>Color</th><th>Prestige</th><th>Home</th><th>Facil.</th><th>NIL</th><th>Coach</th><th>Players</th><th>Avg ovr</th><th>Move to</th><th></th></tr></thead><tbody>
+    ${c.schools.map((s, si) => { const ov = s.players.map(ovrOf);
+      return `<tr>
+      <td><button class="quiet mini" onclick="go('school',${ci},${si})">Edit</button></td>
+      <td><input type="text" value="${esc(s.name)}" onchange="setSchool(${ci},${si},'name',this.value)" style="width:160px"></td>
+      <td><input type="text" value="${esc(s.mascot)}" onchange="setSchool(${ci},${si},'mascot',this.value)" style="width:110px"></td>
+      <td class="hint">${esc(Geo.label(s.city))}</td>
+      <td><input type="text" value="${esc(s.abbr)}" maxlength="4" onchange="setSchool(${ci},${si},'abbr',this.value)" style="width:52px"></td>
+      <td><input type="color" value="${esc(s.color)}" onchange="setSchool(${ci},${si},'color',this.value)"></td>
+      ${["prestige", "homeCourt", "facilities", "nil"].map(k => `<td><input class="n3" type="number" value="${s[k]}" onchange="setSchool(${ci},${si},'${k}',this.value)"></td>`).join("")}
+      <td>${esc(s.coach.name)} <span class="pill">${s.coach.rating}</span></td>
+      <td>${s.players.length}</td><td class="ovr">${(ov.reduce((a, b) => a + b, 0) / Math.max(1, ov.length)).toFixed(1)}</td>
+      <td><select onchange="moveSchool(${ci},${si},this.value)"><option value="">—</option>${DOC.conferences.map(o => o.id === c.id ? "" : `<option value="${esc(o.id)}">${esc(o.name)}</option>`).join("")}</select></td>
+      <td><button class="danger mini" title="Delete school" onclick="deleteSchool(${ci},${si})">✕</button></td></tr>`; }).join("")}
+    </tbody></table></div>
+    <p class="hint">Prestige drives recruiting pull, NIL and the made-up players' level. Home court, facilities and NIL are 1–99 (shown as letter grades in the game).</p>
+  </div>`;
+}
+function drawSchoolHead(){
+  const el = $("schoolHead"); if (!el) return;
+  const { conf, school: s } = cur(), ov = s.players.map(ovrOf).sort((a, b) => b - a);
+  const top = ov.slice(0, 7);
+  el.innerHTML = `<span class="sw" style="width:28px;height:28px;border-radius:5px;background:${esc(s.color)}"></span>
+    <div><div style="font-size:17px;font-weight:700">${esc(s.name)} ${esc(s.mascot)} <span class="pill">${esc(s.abbr)}</span></div>
+    <div class="hint" style="margin:0">${esc(conf.name)} · ${s.players.length} players · top 7 average ${(top.reduce((a, b) => a + b, 0) / Math.max(1, top.length)).toFixed(1)} · best ${ov[0] || "—"}</div></div>`;
+}
+function drawSchool(){
+  const { conf, school: s } = cur(), ci = VIEW.ci, si = VIEW.si, co = s.coach || {};
+  $("main").innerHTML = `
+  <div class="card"><div class="row" id="schoolHead" style="align-items:center;gap:12px"></div></div>
+  <div class="grid2">
+  <div class="card"><h2>Program</h2>
+    <div class="row">
+      <div><label>Name</label><input type="text" value="${esc(s.name)}" onchange="setSchool(${ci},${si},'name',this.value)"></div>
+      <div><label>Mascot</label><input type="text" value="${esc(s.mascot)}" onchange="setSchool(${ci},${si},'mascot',this.value)" style="width:120px"></div>
+      <div><label>Abbr</label><input type="text" value="${esc(s.abbr)}" maxlength="4" onchange="setSchool(${ci},${si},'abbr',this.value)" style="width:56px"></div>
+      <div><label>Color</label><input type="color" value="${esc(s.color)}" onchange="setSchool(${ci},${si},'color',this.value)"></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div><label>City</label><select onchange="setSchool(${ci},${si},'city',this.value)">${cityOptions(s.city)}</select></div>
+      <div class="hint" style="align-self:end">${esc((Geo.AREA[Geo.areaOf(s.city)] || {}).name || "")} area</div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      ${[["prestige", "Prestige (20–96)"], ["homeCourt", "Home court"], ["facilities", "Facilities"], ["nil", "NIL"]].map(([k, l]) =>
+        `<div><label>${l}</label><input type="number" value="${s[k]}" onchange="setSchool(${ci},${si},'${k}',this.value)"></div>`).join("")}
+    </div>
+  </div>
+  <div class="card"><h2>Coach <button class="quiet mini" style="float:right" onclick="regenCoach()">New random coach</button></h2>
+    <div class="row">
+      <div><label>Name</label><input type="text" value="${esc(co.name)}" onchange="setCoach('name',this.value)" style="width:150px"></div>
+      ${[["rating", "Tactics"], ["recruiting", "Recruiting"], ["development", "Develop."], ["scouting", "Scouting"], ["years", "Years"]].map(([k, l]) =>
+        `<div><label>${l}</label><input type="number" value="${co[k] != null ? co[k] : ""}" onchange="setCoach('${k}',this.value)" style="width:58px"></div>`).join("")}
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div><label>Offense</label><select onchange="setCoach('offense',this.value)">${OFF.map(k => `<option value="${k}" ${k === co.offense ? "selected" : ""}>${TUNING.styles.offense[k].label}</option>`).join("")}</select></div>
+      <div><label>Defense</label><select onchange="setCoach('defense',this.value)">${DEF.map(k => `<option value="${k}" ${k === co.defense ? "selected" : ""}>${TUNING.styles.defense[k].label}</option>`).join("")}</select></div>
+    </div>
+  </div></div>
+  <div class="card"><h2>Roster <span id="rosterCount"></span>
+      <span style="float:right" class="row"><button class="quiet mini" onclick="addPlayer()">+ Player</button><button class="quiet mini" onclick="regenRoster()">New random roster</button></span></h2>
+    <div class="scroll" id="roster"></div>
+    <p class="hint">Click a column to sort. Type a new OVR to move all his ratings (except stamina) together; edit single ratings and OVR follows. Potential can't sit below overall. Work rate is how fast he develops; money 0–1 is how much NIL money matters to him (empty = the game rolls it); loyalty 0–99.</p>
+  </div>`;
+  $("main").insertAdjacentHTML("beforeend", `<div class="card"><h2>Pipelines</h2><div id="pipes"></div></div>`);
+  drawSchoolHead(); drawRoster(); drawPipes();
+}
+function cityOptions(sel){
+  const by = {};
+  for (const c of Object.values(Geo.CITY)) (by[c.state] = by[c.state] || []).push(c);
+  return Object.keys(by).sort().map(st => `<optgroup label="${st}">${by[st].sort((a, b) => a.name.localeCompare(b.name)).map(c => `<option value="${esc(c.key)}" ${c.key === sel ? "selected" : ""}>${esc(c.name)}, ${st}</option>`).join("")}</optgroup>`).join("");
+}
+function drawPipes(){
+  const el = $("pipes"); if (!el) return;
+  const { school: s } = cur(), team = { ...s, area: Geo.areaOf(s.city) }, d = Pipelines.describe(team), P = s.pipelines || {};
+  const home = d.rows.find(r => r.status === "home");
+  const rows = Object.keys(P).filter(a => a !== home.area).sort((a, b) => P[b] - P[a]);
+  const status = (a) => d.rows.find(r => r.area === a) ? d.rows.find(r => r.area === a).status : "fading";
+  el.innerHTML = `<table style="width:auto"><thead><tr><th>Area</th><th>Strength</th><th>Level</th><th></th></tr></thead><tbody>
+    <tr><td><b>${esc(home.name)}</b> <span class="pill">home</span></td><td><input class="n3" type="number" value="${P[home.area] != null ? Math.round(P[home.area]) : ""}" placeholder="${d.floor}" onchange="setPipe('${home.area}',this.value)"></td><td>${home.level}</td><td class="hint">never below ${d.floor} (prestige)</td></tr>
+    ${rows.map(a => `<tr><td>${esc((Geo.AREA[a] || {}).name || a)}</td><td><input class="n3" type="number" value="${Math.round(P[a])}" onchange="setPipe('${a}',this.value)"></td>
+      <td>${Pipelines.levelOf(P[a]).name}</td><td>${status(a) === "active" ? `<span class="pill">counts</span>` : `<span class="hint">beyond the ${d.slots} slots: fades fast</span>`} <button class="danger mini" onclick="setPipe('${a}',0)">✕</button></td></tr>`).join("")}
+    </tbody></table>
+    <div class="row" style="margin-top:8px"><select onchange="addPipe(this.value)"><option value="">+ Add a pipeline area…</option>${Geo.AREAS.filter(a => a.id !== home.area && P[a.id] == null).map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join("")}</select></div>
+    <p class="hint">Developing 20+, Established 45+, Strong 70+. Home always counts; besides it, the ${d.slots} strongest count (slots come from the coach's recruiting rating: 3 at 60+, 4 at 80+). In a dynasty, signing kids from an area builds it and every offseason they fade a little.</p>`;
+}
+function sortBy(k){ SORT = { key: k, dir: SORT.key === k ? -SORT.dir : -1 }; drawRoster(); }
+function drawRoster(){
+  const { school: s } = cur(), el = $("roster"); if (!el) return;
+  $("rosterCount").textContent = `— ${s.players.length} of ${League.ROSTER_SIZE}`;
+  const order = s.players.map((p, i) => i);
+  const val = (p, k) => k === "ovr" ? ovrOf(p) : RATINGS.includes(k) ? p.ratings[k] : k === "pos" ? POS.indexOf(p.pos) : k === "class" ? CLS.indexOf(p.class) : k === "name" ? p.name : p[k];
+  if (SORT.key) order.sort((a, b) => { const x = val(s.players[a], SORT.key), y = val(s.players[b], SORT.key); return (x > y ? 1 : x < y ? -1 : 0) * SORT.dir; });
+  const th = (k, l, title) => `<th onclick="sortBy('${k}')" ${title ? `title="${title}"` : ""}>${l}${SORT.key === k ? (SORT.dir < 0 ? " ▾" : " ▴") : ""}</th>`;
+  el.innerHTML = `<table><thead><tr>${th("name", "Name")}${th("pos", "Pos")}${th("class", "Cl")}${th("height", "Ht")}${th("ovr", "OVR")}${th("potential", "Pot")}
+    ${RATINGS.map(k => th(k, RLABEL[k], k)).join("")}${th("home", "Hometown")}${th("temperament", "Temper")}${th("loyalty", "Loy")}${th("moneyWeight", "$", "money weight 0–1")}${th("workRate", "Work")}<th title="redshirting this season">RS</th><th></th></tr></thead><tbody>
+    ${order.map(i => { const p = s.players[i], o = ovrOf(p);
+      return `<tr class="${VIEW.hl === p.name ? "hl" : ""}">
+      <td><input class="nm" type="text" value="${esc(p.name)}" onchange="setPlayer(${i},'name',this.value)"></td>
+      <td><select onchange="setPlayer(${i},'pos',this.value)">${POS.map(x => `<option ${x === p.pos ? "selected" : ""}>${x}</option>`).join("")}</select></td>
+      <td><select onchange="setPlayer(${i},'class',this.value)">${CLS.map(x => `<option ${x === p.class ? "selected" : ""}>${x}</option>`).join("")}</select></td>
+      <td><input class="ht" type="text" value="${htText(p.height)}" onchange="setPlayer(${i},'height',this.value)"></td>
+      <td><input id="ovr${i}" class="r n3 ${rc(o)}" type="number" value="${o}" style="font-weight:800" onchange="setPlayer(${i},'ovr',this.value)"></td>
+      <td><input class="r" type="number" value="${p.potential}" onchange="setPlayer(${i},'potential',this.value);this.value=cur().school.players[${i}].potential"></td>
+      ${RATINGS.map(k => `<td><input class="r ${rc(p.ratings[k])}" type="number" min="1" max="99" value="${p.ratings[k]}" onchange="setRating(${i},'${k}',this.value);this.className='r '+rc(+this.value)"></td>`).join("")}
+      <td><input type="text" list="cityList" value="${esc(p.home || "")}" onchange="setPlayer(${i},'home',this.value)" style="width:140px" title="${p.home ? Math.round(Geo.miles(s.city, p.home)) + " mi from campus" : ""}"></td>
+      <td><select onchange="setPlayer(${i},'temperament',this.value)">${League.TEMPERAMENTS.map(x => `<option ${x === p.temperament ? "selected" : ""}>${x}</option>`).join("")}</select></td>
+      <td><input class="r" type="number" value="${p.loyalty != null ? p.loyalty : ""}" onchange="setPlayer(${i},'loyalty',this.value)"></td>
+      <td><input class="r" type="number" step="0.05" value="${p.moneyWeight != null ? p.moneyWeight : ""}" placeholder="auto" onchange="setPlayer(${i},'moneyWeight',this.value)"></td>
+      <td><input class="r" type="number" value="${p.workRate != null ? p.workRate : ""}" onchange="setPlayer(${i},'workRate',this.value)"></td>
+      <td><input type="checkbox" ${p.redshirt ? "checked" : ""} onchange="setPlayer(${i},'redshirt',this.checked)"></td>
+      <td style="white-space:nowrap"><button class="quiet mini" title="Replace with a new random player (same position and class)" onclick="regenPlayer(${i})">↻</button>
+        <button class="danger mini" title="Delete player" onclick="deletePlayer(${i})">✕</button></td></tr>`; }).join("")}
+    </tbody></table>`;
+}
+function drawSearch(){
+  const q = SEARCH.trim().toLowerCase(), schools = [], players = [];
+  DOC.conferences.forEach((c, ci) => c.schools.forEach((s, si) => {
+    if ((s.name + " " + s.mascot + " " + s.abbr + " " + (s.coach && s.coach.name) + " " + (s.city || "")).toLowerCase().includes(q)) schools.push({ c, ci, s, si });
+    for (const p of s.players) if (p.name.toLowerCase().includes(q)) players.push({ c, ci, s, si, p });
+  }));
+  const main = $("main"); if (!main) return;
+  main.innerHTML = `<div class="card"><h2>Schools and coaches matching “${esc(SEARCH)}” — ${schools.length}</h2>
+    ${schools.slice(0, 60).map(x => `<div class="item" style="cursor:pointer;padding:4px 0" onclick="go('school',${x.ci},${x.si})"><span class="sw" style="background:${esc(x.s.color)}"></span>${esc(x.s.name)} ${esc(x.s.mascot)} <span class="pill">${esc(x.c.name)}</span> <span class="hint">coach ${esc(x.s.coach.name)}</span></div>`).join("") || `<p class="hint">None.</p>`}
+  </div>
+  <div class="card"><h2>Players — ${players.length}${players.length > 100 ? " (first 100)" : ""}</h2>
+    <table><tbody>${players.slice(0, 100).map(x => `<tr style="cursor:pointer" onclick="go('school',${x.ci},${x.si},'${esc(x.p.name).replace(/'/g, "\\'")}')">
+      <td>${esc(x.p.name)}</td><td>${x.p.pos}</td><td>${x.p.class}</td><td class="ovr ${rc(ovrOf(x.p))}">${ovrOf(x.p)}</td><td>${esc(x.s.name)}</td><td class="hint">${esc(x.c.name)}</td></tr>`).join("") || `<tr><td class="hint">None.</td></tr>`}</tbody></table>
+  </div>`;
+}
+
+$("cityList").innerHTML = Object.keys(Geo.CITY).sort().map(k => `<option value="${esc(k)}">`).join("");
+showStart();
+</script>
+</body>
+</html>
